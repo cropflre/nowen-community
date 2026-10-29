@@ -85,3 +85,17 @@ test('phase7 protected test entry must fail closed and never touch production',(
  assert.doesNotMatch(js,/dns_records|migrations apply|create.*route|secret put/);
  assert.ok(wf.includes('node scripts/protected-test-entry.mjs disable'));
 });
+
+test('GitHub Cloudflare token must read pinned Access app, filtered list is not authoritative',()=>{
+ const gate=read('scripts/access-gate.mjs');
+ const preview=read('scripts/protected-test-entry.mjs');
+ const id='d3894200-0bfe-4a51-aa41-aa98e93e2d98';
+ for(const js of [gate,preview]){
+   assert.ok(js.includes(id),'Staging Access app must be pinned');
+   assert.ok(js.includes("'/access/apps/'"),'Use direct GET of exact application');
+   assert.doesNotMatch(js,/apps\.filter\(/,'Do not rely on limited-token app lists');
+   assert.match(js,/Apps and Policies.*Read/);
+   assert.match(js,/NOWEN Community Staging Access/);
+ }
+ assert.match(preview,/FAIL CLOSED/);
+});

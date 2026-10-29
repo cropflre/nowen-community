@@ -44,12 +44,18 @@ const root = '/accounts/' + account;
 const workers = await cf(root + '/workers/scripts');
 const worker = workers.find(x => x.id === 'nowen-community-staging');
 assert.ok(worker?.tag, 'Staging Worker not deployed or missing stable Cloudflare Worker ID.');
-const apps = await cf(root + '/access/apps');
-const matches = apps.filter(a => a.name === 'NOWEN Community Staging Access');
-assert.equal(matches.length, 1, 'Expected one Access app named NOWEN Community Staging Access.');
-const app = await cf(root + '/access/apps/' + matches[0].id);
+// Pin the exact Access app. Some least-privilege GitHub tokens see an empty
+// /access/apps list rather than a 403; never misdiagnose that as a missing app.
+const ACCESS_APP_ID = 'd3894200-0bfe-4a51-aa41-aa98e93e2d98';
+let app;
+try {
+  app = await cf(root + '/access/apps/' + ACCESS_APP_ID);
+} catch (error) {
+  throw new Error('Cannot read pinned staging Access app via GitHub Cloudflare token. Check Account → Access: Apps and Policies → Read scope, and account resource restriction. ' + String(error));
+}
+assert.equal(app?.id, ACCESS_APP_ID, 'Unexpected Access app ID (possible wrong account).');
+assert.equal(app.name, 'NOWEN Community Staging Access', 'Wrong Access application.');
 assert.equal(app.type, 'self_hosted', 'Use a self-hosted Access application.');
-assert.equal(app.id, matches[0].id);
 assert.ok(
   (app.destinations || []).some(d => d.type === 'worker' && d.worker_id === worker.tag),
   'Access application MUST protect the staging Worker itself with All traffic, not just previews or one hostname.'
