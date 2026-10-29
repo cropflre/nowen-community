@@ -43,10 +43,12 @@ jobs:
       - name: Require explicit manual environment unlock
         env:
           RELEASE_UNLOCK: ${{ secrets.COMMUNITY_RELEASE_UNLOCK }}
+          PEPPER: ${{ secrets.COMMUNITY_PASSWORD_PEPPER }}
           SECRET_KEY: ${{ secrets.COMMUNITY_TURNSTILE_SECRET_KEY }}
         run: |
           test "$RELEASE_UNLOCK" = "INTERNAL_UNROUTED_WORKER_ONLY"
           test -n "$SECRET_KEY"
+          test ${#PEPPER} -ge 43
       - run: npm run build
       - name: Publish un-routed Worker only
         env:
@@ -60,6 +62,13 @@ jobs:
           TS_SECRET: ${{ secrets.COMMUNITY_TURNSTILE_SECRET_KEY }}
         run: |
           printf '%s' "$TS_SECRET" | npx wrangler secret put TURNSTILE_SECRET_KEY
+      - name: Set production password pepper (private Worker secret)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PEPPER: ${{ secrets.COMMUNITY_PASSWORD_PEPPER }}
+        run: |
+          printf '%s' "$PEPPER" | npx wrangler secret put PASSWORD_PEPPER
       - name: Confirm no public route
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

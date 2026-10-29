@@ -49,10 +49,12 @@ jobs:
       - name: Require staging-specific Turnstile and deployment approval
         env:
           RELEASE_UNLOCK: ${{ secrets.COMMUNITY_RELEASE_UNLOCK }}
+          PEPPER: ${{ secrets.COMMUNITY_STAGING_PASSWORD_PEPPER }}
           STAGING_SECRET: ${{ secrets.COMMUNITY_STAGING_TURNSTILE_SECRET_KEY }}
         run: |
           test "$RELEASE_UNLOCK" = "INTERNAL_UNROUTED_WORKER_ONLY"
           test -n "$STAGING_SECRET"
+          test ${#PEPPER} -ge 43
       - name: Build and validate the isolated staging Worker
         env:
           CLOUDFLARE_ENV: staging
@@ -71,6 +73,13 @@ jobs:
           TS_SECRET: ${{ secrets.COMMUNITY_STAGING_TURNSTILE_SECRET_KEY }}
         run: |
           printf '%s' "$TS_SECRET" | npx wrangler secret put TURNSTILE_SECRET_KEY --name nowen-community-staging
+      - name: Set staging password pepper (private Worker secret)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PEPPER: ${{ secrets.COMMUNITY_STAGING_PASSWORD_PEPPER }}
+        run: |
+          printf '%s' "$PEPPER" | npx wrangler secret put PASSWORD_PEPPER --name nowen-community-staging
       - name: Verify staging bindings and no public ingress
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

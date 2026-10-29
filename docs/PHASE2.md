@@ -5,7 +5,7 @@
 1. 管理员在本地执行 `node scripts/issue-invite.mjs 7`，将随机邀请码私下发送给受邀用户，生成的哈希插入**独立** D1 `nowen-community-db`。
 2. 注册输入 `username`（3-24 位英文、数字、下划线）、昵称、12 位以上密码和邀请码。
 3. 服务端对邀请码 SHA-256 后，在 D1 单一事务内 **INSERT 用户 SELECT 有效邀请 + UPDATE 邀请消耗**，多次使用只允许成功一次。
-4. 登录时用 WebCrypto PBKDF2-SHA256（600,000 轮，随机盐）验证密码；会话只存 SHA-256 Token 哈希，Cookie `HttpOnly; SameSite=Lax; Secure(HTTPS)`，一周有效。
+4. 登录时用 WebCrypto HMAC-SHA256 服务端 Pepper 预哈希 + Cloudflare Workers 兼容的 PBKDF2-SHA256（100,000 轮，随机盐）验证密码；会话只存 SHA-256 Token 哈希，Cookie `HttpOnly; SameSite=Lax; Secure(HTTPS)`，一周有效。
 5. 登录后打开新话题，Markdown 编辑，停止输入后自动保存草稿；提交时从 draft 原子更新为 pending。**未配置审核后台前不会公开显示**。
 6. 公开话题可点赞、收藏和回复；新回复进入 pending，仅本人可预览。
 7. 登出将 D1 会话哈希删除，旧 Cookie 失效。

@@ -86,5 +86,6 @@ if (process.env.STAGING_DEPLOYED === '1') {
   assert.equal(bindings.get('TURNSTILE_SITE_KEY')?.type, 'plain_text');
   assert.equal(bindings.get('TURNSTILE_SITE_KEY')?.text, s.vars.TURNSTILE_SITE_KEY);
   assert.equal(bindings.get('TURNSTILE_SECRET_KEY')?.type, 'secret_text');
+  assert.equal(bindings.get('PASSWORD_PEPPER')?.type, 'secret_text');
 }
 console.log('Staging preflight PASS: isolated D1, R2 private, migrations tracked, no public routes/domains' + (process.env.STAGING_DEPLOYED==='1' ? ', Worker bindings validated.' : '.'));
