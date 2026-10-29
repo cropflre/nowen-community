@@ -11,8 +11,12 @@
 
 | Phase 6（本 PR） | Cloudflare Zero Trust / Access 工作区启用核验、staging Worker 全流量访问策略、只读 GitHub 安全门禁与实际浏览器验收手册 | Access 未启用时 Fail Closed；精确邮箱允许名单；无 Bypass；绑定测试域名前须经独立验收与审批 |
 
+| Phase 7（本 PR） | Cloudflare Access 下的 staging 临时 workers.dev 验收入口、匿名访问拦截、失败自动关闭与紧急关闭工作流 | 严格 Access 策略核验；无公共预览；匿名请求须证实 Access 拦截，否则自动回滚；正式域名保持不变 |
+
 产品原则：参考 V2EX 的轻量分类讨论模式，原创 NOWEN UI、优先简单操作。未上线按钮必须明确禁用。
 
 阶段 5 的完整手册见 [PHASE5_STAGING.md](PHASE5_STAGING.md)。正式域名仍未公开上线。
 
 Phase 6 安全门禁和 Cloudflare Zero Trust 开通指引见 [PHASE6_ACCESS.md](PHASE6_ACCESS.md)。测试域名尚未开放。
+
+Phase 7 操作详见 [PHASE7_PROTECTED_PREVIEW.md](PHASE7_PROTECTED_PREVIEW.md)，只启用受保护的临时测试入口，不修改正式域名。

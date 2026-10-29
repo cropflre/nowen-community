@@ -61,3 +61,27 @@ test('phase6 Access gate is manual read-only and rejects missing or weak protect
  assert.match(script,/All traffic/);
  assert.doesNotMatch(script,/method:\s*'POST'|method:\s*'PUT'|method:\s*'DELETE'/);
 });
+
+test('phase7 protected test entry must fail closed and never touch production',()=>{
+ const wf=read('.github/workflows/protected-test-entry.yml');
+ const js=read('scripts/protected-test-entry.mjs');
+ assert.match(wf,/workflow_dispatch:/);
+ assert.doesNotMatch(wf,/^  push:/m);
+ assert.match(wf,/community-internal-release/);
+ for(const action of ['check','enable-protected-entry','disable-entry']) assert.ok(wf.includes(action));
+ assert.match(wf,/COMMUNITY_RELEASE_UNLOCK/);
+ assert.match(js,/Access must cover this Worker All traffic/);
+ assert.match(js,/Require one exact email only/);
+ assert.match(js,/decision,'allow'/);
+ assert.match(js,/previews_enabled:false/);
+ assert.match(js,/FAIL OPEN/);
+ assert.match(js,/FAIL CLOSED/);
+ assert.match(js,/automatic shutdown failed/);
+ assert.match(js,/if\(ACTION==='disable'\)/);
+ assert.match(js,/await change\(false\)/);
+ assert.match(js,/assert\.equal\(cfg\.workers_dev,false\)/);
+ assert.match(js,/nowen-community-staging-assets/);
+ assert.match(js,/073ece5c-4518-4d3c-a264-d9f976020554/);
+ assert.doesNotMatch(js,/dns_records|migrations apply|create.*route|secret put/);
+ assert.ok(wf.includes('node scripts/protected-test-entry.mjs disable'));
+});

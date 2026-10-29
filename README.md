@@ -77,3 +77,7 @@ Cloudflare 上已建立与正式环境完全隔离的 `nowen-community-staging-d
 Staging Worker 已部署，但未绑定测试域名。Cloudflare Zero Trust 当前尚未启用；必须先在 Cloudflare 开通 Zero Trust，给 `nowen-community-staging` 配置 **All traffic**、**指定邮箱允许名单** 的 Worker 级 Access 保护（不影响其他 NOWEN Worker）。
 
 合并 Phase 6 PR 后可手动运行 `NOWEN Community Access Safety Gate` 只读预检；Access 未启用、策略不严格或 API Token 缺少读取权限将安全失败。**禁止直接开放 staging 域名**。具体步骤见 [Phase 6 Access 手册](docs/PHASE6_ACCESS.md)。
+
+## Phase 7 · 受保护测试入口
+
+新增 [Phase 7 预览验收手册](docs/PHASE7_PROTECTED_PREVIEW.md) 和手动 GitHub Actions 工作流。开启 staging workers.dev 前要求严格的 Cloudflare Access Worker 级保护；GitHub Runner 从匿名状态实测 `/` 和 `/api/health` 均被 Access 拒绝，否则自动关闭；可独立执行紧急关闭。**不启用 Version URLs、不绑定生产域名。**
