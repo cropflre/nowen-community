@@ -45,3 +45,19 @@ test('staging deploy requires manual selection, approval and staging-only secret
  assert.match(p,/nowen-community-staging-assets/);
  assert.match(p,/no public routes\/domains/);
 });
+
+test('phase6 Access gate is manual read-only and rejects missing or weak protection',()=>{
+ const workflow=read('.github/workflows/community-access-gate.yml');
+ assert.match(workflow,/workflow_dispatch:/);
+ assert.doesNotMatch(workflow,/^  push:/m);
+ assert.match(workflow,/STAGING_DEPLOYED: '1'/);
+ assert.match(workflow,/node scripts\/staging-preflight.mjs/);
+ assert.match(workflow,/node scripts\/access-gate.mjs/);
+ assert.doesNotMatch(workflow,/wrangler deploy|routes.*create|dns_records/);
+ const script=read('scripts/access-gate.mjs');
+ for(const word of ['access.api.error.not_enabled','worker.tag','d.type === \'worker\'','decision','bypass','email','NOWEN Community Staging Access'])
+   assert.ok(script.includes(word),'Access gate missing: '+word);
+ assert.match(script,/Access Apps and Policies \(Read\)/);
+ assert.match(script,/All traffic/);
+ assert.doesNotMatch(script,/method:\s*'POST'|method:\s*'PUT'|method:\s*'DELETE'/);
+});
