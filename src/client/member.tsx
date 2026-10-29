@@ -1,6 +1,7 @@
 import React,{useEffect,useRef,useState} from 'react';
 import ReactMarkdown from 'react-markdown';
 import {TurnstileField} from './turnstile';
+import {friendlyError} from './errors';
 import remarkGfm from 'remark-gfm';
 type Member={id:string;username:string;displayName:string;role:string};
 type Category={id:string;name:string};
@@ -11,7 +12,7 @@ const request=async <T,>(path:string,method='GET',body?:unknown,requestKey?:stri
  if(requestKey)headers['Idempotency-Key']=requestKey;
  const response=await fetch(path,{method,headers,credentials:'same-origin',body:body===undefined?undefined:JSON.stringify(body)});
  const value=await response.json().catch(()=>({error:'NETWORK_ERROR'})) as Record<string,unknown>;
- if(!response.ok)throw new Error(String(value.error||('HTTP '+response.status)));return value as T;
+ if(!response.ok)throw new Error(friendlyError(String(value.error||('HTTP '+response.status))));return value as T;
 };
 export function useMember(){const [member,setMember]=useState<Member|null>(null);const [loading,setLoading]=useState(true);useEffect(()=>{let live=true;request<{user:Member|null}>('/api/v1/me').then(d=>{if(live)setMember(d.user)}).catch(()=>{}).finally(()=>{if(live)setLoading(false)});return()=>{live=false}},[]);return {member,setMember,loading};}
 export function AuthDialog({onClose,onAuthenticated}:{onClose:()=>void;onAuthenticated:(member:Member)=>void}){
@@ -50,6 +51,12 @@ export function ComposerDialog({member,categories,onClose,initialDraft}:{member:
  const [title,setTitle]=useState(stored?.title||''),[content,setContent]=useState(stored?.content||''),[categoryId,setCategoryId]=useState(stored?.categoryId||categories[0]?.id||''),[id,setId]=useState(stored?.id||'');
  const [key]=useState((stored&&'key' in stored?stored.key:undefined)||crypto.randomUUID()),[saving,setSaving]=useState(false),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[preview,setPreview]=useState(false);
  const [token,setToken]=useState(''),[revision,setRevision]=useState(0),[uploaded,setUploaded]=useState<string[]>([]);
+ const productTemplates=[
+  {name:'Bug 反馈',content:'## 问题描述\n\n## 产品版本 / 设备 / 系统\n\n## 复现步骤\n1. \n2. \n\n## 预期结果与实际结果\n'},
+  {name:'功能建议',content:'## 想解决什么问题\n\n## 希望如何使用\n\n## 参考截图或链接\n'},
+  {name:'使用交流',content:'## 交流主题\n\n## 已尝试的方式\n\n## 希望大家讨论\n'},
+ ];
+
  const [uploading,setUploading]=useState(false);
  const textarea=useRef<HTMLTextAreaElement>(null);
  const serverId=useRef(stored?.id||'');
@@ -92,7 +99,7 @@ export function ComposerDialog({member,categories,onClose,initialDraft}:{member:
    setMessage('图片已插入正文；图片审核通过后其他用户才能查看');
   }catch(e){setMessage(e instanceof Error?e.message:'上传失败')}finally{setUploading(false);setRevision(x=>x+1)}
  }
- return <div className="modal-backdrop" role="presentation"><section role="dialog" aria-modal="true" aria-labelledby="compose-title" className="member-dialog composer"><button className="member-close" onClick={onClose} aria-label="关闭">×</button><h2 id="compose-title">发布新话题</h2><p>支持 Markdown，草稿自动保存；提交后先进入审核。</p><label>社区板块<select value={categoryId} onChange={e=>setCategoryId(e.target.value)}>{categories.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label><label>标题<input maxLength={160} value={title} onChange={e=>setTitle(e.target.value)} placeholder="用一句话描述你想讨论的事情"/></label><label htmlFor="community-editor">正文</label><div className="editor-toolbar" aria-label="Markdown 工具栏"><button type="button" onClick={()=>insertMarkdown('**','**')}>加粗</button><button type="button" onClick={()=>insertMarkdown('*','*')}>斜体</button><button type="button" onClick={()=>insertMarkdown('- ')}>列表</button><button type="button" onClick={()=>insertMarkdown('[文字](',')')}>链接</button></div><textarea id="community-editor" aria-label="正文" ref={textarea} rows={9} maxLength={12000} value={content} onChange={e=>setContent(e.target.value)} placeholder="分享你的想法，支持 Markdown 语法…"/><label className="upload-field">图片上传（2MB 内，自动插入正文）<input type="file" disabled={uploading} accept="image/png,image/jpeg,image/webp" onChange={e=>{const file=e.target.files?.[0];if(file)uploadImage(file);e.target.value=''}}/></label>{uploaded.length>0&&<small>本次插入 {uploaded.length} 张图片，图片审核通过后其他用户才能查看</small>}<div className="compose-preview"><button onClick={()=>setPreview(!preview)}>{preview?'返回编辑':'预览 Markdown'}</button>{preview&&<div className="markdown-body"><ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown></div>}</div><TurnstileField revision={revision} onToken={setToken}/><div className="composer-bottom"><small role="status">{saving?'保存中…':message||'草稿将在停止输入后自动保存'}</small><button className="member-primary" onClick={submit} disabled={busy||saving}>{busy?'提交中…':'提交审核'}</button></div></section></div>
+ return <div className="modal-backdrop" role="presentation"><section role="dialog" aria-modal="true" aria-labelledby="compose-title" className="member-dialog composer"><button className="member-close" onClick={onClose} aria-label="关闭">×</button><h2 id="compose-title">发布新话题</h2><p>支持 Markdown，草稿自动保存；提交后先进入审核。</p><label>社区板块<select value={categoryId} onChange={e=>setCategoryId(e.target.value)}>{categories.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label><label>标题<input maxLength={160} value={title} onChange={e=>setTitle(e.target.value)} placeholder="用一句话描述你想讨论的事情"/></label>{['note','reader','video'].includes(categoryId)&&<div className="feedback-templates"><small>快速反馈模板</small>{productTemplates.map(t=><button key={t.name} type="button" onClick={()=>setContent(old=>old.trim()?old+'\n\n'+t.content:t.content)}>{t.name}</button>)}</div>}<label htmlFor="community-editor">正文</label><div className="editor-toolbar" aria-label="Markdown 工具栏"><button type="button" onClick={()=>insertMarkdown('**','**')}>加粗</button><button type="button" onClick={()=>insertMarkdown('*','*')}>斜体</button><button type="button" onClick={()=>insertMarkdown('- ')}>列表</button><button type="button" onClick={()=>insertMarkdown('[文字](',')')}>链接</button></div><textarea id="community-editor" aria-label="正文" ref={textarea} rows={9} maxLength={12000} value={content} onChange={e=>setContent(e.target.value)} placeholder="分享你的想法，支持 Markdown 语法…"/><label className="upload-field">图片上传（2MB 内，自动插入正文）<input type="file" disabled={uploading} accept="image/png,image/jpeg,image/webp" onChange={e=>{const file=e.target.files?.[0];if(file)uploadImage(file);e.target.value=''}}/></label>{uploaded.length>0&&<small>本次插入 {uploaded.length} 张图片，图片审核通过后其他用户才能查看</small>}<div className="compose-preview"><button onClick={()=>setPreview(!preview)}>{preview?'返回编辑':'预览 Markdown'}</button>{preview&&<div className="markdown-body"><ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown></div>}</div><TurnstileField revision={revision} onToken={setToken}/><div className="composer-bottom"><small role="status">{saving?'保存中…':message||'草稿将在停止输入后自动保存'}</small><button className="member-primary" onClick={submit} disabled={busy||saving}>{busy?'提交中…':'提交审核'}</button></div></section></div>
 }
 export function TopicEngagement({id,slug,member,onLogin}:{id:string;slug:string;member:Member|null;onLogin:()=>void}){
  const [replies,setReplies]=useState<{id:string;content:string;status:string;author:string;createdAt:number}[]>([]);

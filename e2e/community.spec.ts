@@ -22,7 +22,7 @@ test('open registration, draft autosave and pending-only submission',async({page
  await page.getByPlaceholder('至少 12 位密码').fill('A long and unique test password! 2026');
  await expect(page.getByPlaceholder('管理员提供的一次性邀请码')).toHaveCount(0);
  await page.getByRole('button',{name:'创建账号'}).click();
- await expect(page.getByRole('button',{name:/测试创作者.*退出/})).toBeVisible({timeout:15000});
+ await expect(page.getByRole('button',{name:/测试创作者.*账号/})).toBeVisible({timeout:15000});
  await page.getByRole('button',{name:'开启一个话题'}).click();
  await page.getByPlaceholder('用一句话描述你想讨论的事情').fill('我的第一篇弄文社区话题');
  await page.getByPlaceholder('分享你的想法，支持 Markdown 语法…').fill('这是通过 Playwright 浏览器端测试发布的 Markdown 内容。');
