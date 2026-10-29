@@ -1,17 +1,9 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
-import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 const base=process.env.SMOKE_BASE??'http://127.0.0.1:5173';
-const token='local-testing-invitation-token-000000001';
-const hash=createHash('sha256').update(token).digest('hex');
 const origin=new URL(base).origin;
 function sql(query){return execFileSync('npx',['wrangler','d1','execute','nowen-community-db','--local','--command',query],{encoding:'utf8',timeout:60000});}
-if(process.argv.includes('--seed')){
- sql("INSERT OR IGNORE INTO invitations(id,code_hash,expires_at) VALUES('phase2-integration-invite','"+hash+"',4102444800)");
- console.log('Seeded isolated LOCAL D1 invitation');
- process.exit(0);
-}
 async function req(path,method='GET',body,cookie,key,from=origin){
  const h={Origin:from,Accept:'application/json'};
  if(body!==undefined)h['Content-Type']='application/json';
@@ -24,12 +16,14 @@ async function req(path,method='GET',body,cookie,key,from=origin){
 const suffix=Date.now().toString(36);
 const username='test'+suffix.slice(-12);
 const password='Test phrase for phase two 2026!';
-const reg=await req('/api/v1/auth/register','POST',{username,displayName:'联调测试',password,invitation:token});
+const reg=await req('/api/v1/auth/register','POST',{username,displayName:'联调测试',password});
 assert.equal(reg.status,201,JSON.stringify(reg.data));
 assert.ok(reg.cookie?.includes('HttpOnly')&&reg.cookie?.includes('SameSite=Lax'));
 const cookie=reg.cookie.split(';')[0];
-const dup=await req('/api/v1/auth/register','POST',{username:username+'a',displayName:'测试二号',password,invitation:token});
-assert.equal(dup.status,400,'Invitation code must be consumed atomically');
+const dup=await req('/api/v1/auth/register','POST',{username,displayName:'同名测试',password});
+assert.equal(dup.status,409,'Duplicate username must be rejected');
+const second=await req('/api/v1/auth/register','POST',{username:username+'a',displayName:'独立测试账号',password});
+assert.equal(second.status,201,'Another account must register without an invitation');
 const me=await req('/api/v1/me','GET',undefined,cookie);
 assert.equal(me.data.user.username,username);
 const forged=await req('/api/v1/topics','POST',{title:'cross-site',content:'x',categoryId:'note'},cookie,'request-key-cross-001','https://bad.example');
@@ -63,4 +57,4 @@ const replies=await req('/api/v1/topics/'+post.data.item.slug+'/replies','GET',u
 assert.equal(replies.data.items[0].status,'pending');
 const withoutAuth=await req('/api/v1/topics/'+post.data.item.slug+'/replies');
 assert.equal(withoutAuth.data.items.length,0,'Pending reply must be hidden from visitors');
-console.log('Phase 2 live D1 + auth + CSRF + invitations + drafts + replies + likes + bookmarks smoke passed');
+console.log('Phase 2 live D1 + auth + CSRF + open registration + drafts + replies + likes + bookmarks smoke passed');
