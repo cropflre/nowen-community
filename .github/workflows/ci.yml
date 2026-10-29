@@ -1,0 +1,25 @@
+name: NOWEN Community checks
+on:
+  push:
+    branches: [main, "feat/**", "fix/**"]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - name: Protect existing NOWEN services
+        run: |
+          grep -q '"workers_dev": false' wrangler.jsonc
+          ! grep -q '"database_name": "nowen-site-stats"' wrangler.jsonc
