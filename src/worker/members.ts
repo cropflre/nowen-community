@@ -48,6 +48,12 @@ app.post('/auth/login',async c=>{
 });
 app.post('/auth/logout',async c=>{await revokeSession(c);return c.json({ok:true});});
 app.get('/me/topics',async c=>{const user=await getActor(c);if(!user)return c.json({error:'UNAUTHORIZED'},401);const {results}=await c.env.DB.prepare('SELECT id,slug,category_id AS categoryId,title,content,status,updated_at AS updatedAt FROM topics WHERE author_id=? ORDER BY updated_at DESC LIMIT 100').bind(user.id).all();return c.json({items:results});});
+// Only the owner can delete an unpublished draft; no public content is affected.
+app.delete('/me/topics/:id',async c=>{
+ const user=await requireActor(c);if(!user)return c.json({error:'UNAUTHORIZED'},401);
+ const r=await c.env.DB.prepare("DELETE FROM topics WHERE id=? AND author_id=? AND status='draft'").bind(c.req.param('id'),user.id).run();
+ return r.meta.changes?c.json({ok:true}):c.json({error:'NOT_EDITABLE'},404);
+});
 app.post('/topics',async c=>{
  const user=await requireActor(c);if(!user)return c.json({error:'UNAUTHORIZED'},401);
  if(!await rateLimit(c,'topics:'+user.id,30,3600))return c.json({error:'RATE_LIMITED'},429);

@@ -36,6 +36,12 @@ const again=await req('/api/v1/topics','POST',{title:'Phase 2 safe sample topic'
 assert.equal(again.data.item.id,post.data.item.id,'duplicate request must not produce a second topic');
 const other=await req('/api/v1/topics/'+post.data.item.id,'PUT',{title:'Cannot update',content:'Cannot update this topic',categoryId:'note'},undefined);
 assert.equal(other.status,401);
+const removable=await req('/api/v1/topics','POST',{title:'Disposable draft for self management',content:'Content can be discarded safely.',categoryId:'note'},cookie,'phase2-delete-draft-safe-012345');
+assert.equal(removable.status,201);
+const anotherDelete=await req('/api/v1/me/topics/'+removable.data.item.id,'DELETE',undefined,second.cookie?.split(';')[0]);
+assert.equal(anotherDelete.status,404,'Other users cannot delete private drafts');
+const discarded=await req('/api/v1/me/topics/'+removable.data.item.id,'DELETE',undefined,cookie);
+assert.equal(discarded.status,200,'Owner can discard an unpublished draft');
 const submitted=await req('/api/v1/topics/'+post.data.item.id+'/submit','POST',undefined,cookie);
 assert.equal(submitted.status,200);assert.equal(submitted.data.status,'pending');
 const publicTopic=await req('/api/v1/topics/'+post.data.item.slug);
