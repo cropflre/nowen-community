@@ -1,5 +1,5 @@
 import type { Context } from 'hono';
-export type CommunityBindings={DB:D1Database;ASSETS:Fetcher;MEDIA:R2Bucket;TURNSTILE_SECRET_KEY?:string;TURNSTILE_SITE_KEY?:string};
+export type CommunityBindings={DB:D1Database;ASSETS:Fetcher;MEDIA:R2Bucket;TURNSTILE_SECRET_KEY?:string;TURNSTILE_SITE_KEY?:string;LOCAL_TEST_TURNSTILE?:string};
 type C=Context<{Bindings:CommunityBindings}>;
 export type Actor={id:string;username:string;displayName:string;role:'member'|'moderator'|'admin'};
 const sessionCookie='nowen_community_session';
