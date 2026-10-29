@@ -54,3 +54,10 @@
 .my-topic-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px;justify-content:flex-end}
 .my-topic-actions .danger-text{color:#be4859}
 @media(max-width:600px){.my-topic{align-items:flex-start;flex-direction:column}.my-topic-actions{justify-content:flex-start}.account-shortcut{font-size:11px;padding:7px}}
+
+.admin-tabs{display:flex;gap:10px;margin-bottom:15px;flex-wrap:wrap}
+.admin-tabs button,.admin-list-title select{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:9px;padding:9px 15px}
+.admin-tabs button.active{background:var(--soft);color:var(--accent);border-color:var(--accent)}
+.admin-topic-link{color:var(--accent);display:inline-block;margin:5px 0 15px;font-size:12px;text-decoration:underline}
+.admin-meta{font-size:12px;color:var(--muted);display:block;margin-top:8px}
+.admin-notice{color:#2c8c54;font-size:13px}

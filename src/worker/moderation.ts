@@ -42,8 +42,8 @@ mod.get('/admin/queue',async c=>{
  const user=await admin(c);if(!user)return c.json({error:'FORBIDDEN'},403);
  const type=c.req.query('type')==='reply'?'reply':'topic';
  const statement=type==='topic'
-  ? "SELECT t.id,t.title,t.content,t.status,t.created_at AS createdAt,u.username AS author FROM topics t JOIN users u ON t.author_id=u.id WHERE t.status='pending' ORDER BY t.created_at ASC LIMIT 60"
-  : "SELECT r.id,r.content,r.status,r.created_at AS createdAt,u.username AS author,t.title AS topicTitle FROM replies r JOIN users u ON r.author_id=u.id JOIN topics t ON t.id=r.topic_id WHERE r.status='pending' ORDER BY r.created_at ASC LIMIT 60";
+  ? "SELECT t.id,t.title,t.slug,t.content,t.status,t.created_at AS createdAt,u.username AS author FROM topics t JOIN users u ON t.author_id=u.id WHERE t.status='pending' ORDER BY t.created_at ASC LIMIT 60"
+  : "SELECT r.id,r.content,r.status,r.created_at AS createdAt,u.username AS author,t.title AS topicTitle,t.slug AS topicSlug FROM replies r JOIN users u ON r.author_id=u.id JOIN topics t ON t.id=r.topic_id WHERE r.status='pending' ORDER BY r.created_at ASC LIMIT 60";
  const {results}=await c.env.DB.prepare(statement).all();
  return c.json({items:results});
 });
@@ -75,7 +75,7 @@ mod.post('/admin/review',async c=>{
 });
 mod.get('/admin/reports',async c=>{
  const user=await admin(c);if(!user)return c.json({error:'FORBIDDEN'},403);
- const {results}=await c.env.DB.prepare("SELECT r.id,r.reason,r.target_type AS type,r.target_id AS targetId,r.created_at AS createdAt,u.username AS reporter,COALESCE(t.title,rt.title,'内容已不可用') AS topicTitle,SUBSTR(COALESCE(t.content,rr.content,''),1,800) AS targetPreview FROM reports r JOIN users u ON r.reporter_id=u.id LEFT JOIN topics t ON r.target_type='topic' AND t.id=r.target_id LEFT JOIN replies rr ON r.target_type='reply' AND rr.id=r.target_id LEFT JOIN topics rt ON rt.id=rr.topic_id WHERE r.status='open' ORDER BY r.created_at ASC LIMIT 60").all();
+ const {results}=await c.env.DB.prepare("SELECT r.id,r.reason,r.target_type AS type,r.target_id AS targetId,r.created_at AS createdAt,u.username AS reporter,COALESCE(t.title,rt.title,'内容已不可用') AS topicTitle,COALESCE(t.slug,rt.slug) AS topicSlug,SUBSTR(COALESCE(t.content,rr.content,''),1,800) AS targetPreview FROM reports r JOIN users u ON r.reporter_id=u.id LEFT JOIN topics t ON r.target_type='topic' AND t.id=r.target_id LEFT JOIN replies rr ON r.target_type='reply' AND rr.id=r.target_id LEFT JOIN topics rt ON rt.id=rr.topic_id WHERE r.status='open' ORDER BY r.created_at ASC LIMIT 60").all();
  return c.json({items:results});
 });
 mod.post('/admin/reports/:id/resolve',async c=>{
@@ -183,7 +183,7 @@ mod.get('/media/:id',async c=>{
  if(!c.env.MEDIA)return c.json({error:'STORAGE_UNAVAILABLE'},503);
  const object=await c.env.MEDIA.get(row.objectKey);
  if(!object)return c.json({error:'NOT_FOUND'},404);
- return new Response(object.body,{headers:{'Content-Type':row.contentType,'X-Content-Type-Options':'nosniff','Cache-Control':'private, no-store','Content-Security-Policy':"default-src 'none'; sandbox",'Content-Disposition':row.state==='approved'?'inline':'attachment'}});
+ return new Response(object.body,{headers:{'Content-Type':row.contentType,'X-Content-Type-Options':'nosniff','Cache-Control':'private, no-store','Content-Security-Policy':"default-src 'none'; sandbox",'Content-Disposition':'inline'}});
 });
 mod.get('/admin/uploads',async c=>{
  const user=await admin(c);if(!user)return c.json({error:'FORBIDDEN'},403);
