@@ -69,7 +69,7 @@ function App(){
     {categories.map(c=><button key={c.id} className={'navitem '+(category===c.id?'active':'')} onClick={()=>select(c.id)}>{glyphs[c.id]||<MessageCircle/>}{c.name}<ChevronRight className="chevron"/></button>)}
    </nav>
    <div className="sidebar-bottom">
-    <section className="invite"><ShieldCheck/><strong>邀请制内测中</strong><p>我们正在认真打磨社区体验。注册需邀请码，话题提交后由管理员审核。</p><small>INVITATION ONLY · 注册与发帖已进入内测阶段</small></section>
+    <section className="invite"><ShieldCheck/><strong>开放注册 · 内容先审</strong><p>无需邀请码，注册后即可参与讨论；发帖与回复审核通过后展示。</p><small>OPEN REGISTRATION · 审核后公开</small></section>
     <a className="source-link" href="https://github.com/cropflre/nowen-community" target="_blank" rel="noopener noreferrer"><Github/> 参与开源建设 <ArrowRight/></a>
    </div>
   </aside>
@@ -88,7 +88,7 @@ function App(){
         {error?<div className="empty"><LifeBuoy/><h3>暂时无法获取讨论</h3><p>{error} · 请确认 D1 数据库已初始化。</p><button className="retry" onClick={()=>location.reload()}>重新加载</button></div>:
          loading&&!items.length?<div className="empty"><div className="spinner"/><h3>正在连接社区</h3><p>获取最新讨论中…</p></div>:
          rows.length?<><div>{rows.map(t=><a className="topic-row" key={t.id} href={'/t/'+encodeURIComponent(t.slug)}><span className="avatar">{t.authorName.slice(0,1)}</span><span className="topic-copy"><strong>{t.pinned&&<i className="pinned">置顶</i>}{t.title}</strong><p>{t.excerpt}</p><small>{t.categoryName} · {t.authorName} · {new Date(t.createdAt*1000).toLocaleDateString('zh-CN')}</small></span><span className="replies"><MessageCircle/>{t.replyCount}</span></a>)}</div>{next&&<button onClick={more} disabled={loading} className="more">加载更多 <ArrowRight/></button>}</>:
-         <div className="empty"><div className="empty-symbol"><MessageCircle/></div><h3>{query?'没有找到匹配的讨论':'这里，等待第一个好话题'}</h3><p>{query?'试试其他关键词或板块。':'社区基础架构已就绪。邀请用户可发布草稿并提交审核。'}</p>{query&&<button className="retry" onClick={()=>setInput('')}>清除搜索</button>}</div>}
+         <div className="empty"><div className="empty-symbol"><MessageCircle/></div><h3>{query?'没有找到匹配的讨论':'这里，等待第一个好话题'}</h3><p>{query?'试试其他关键词或板块。':'社区已开放账号注册。登录后可发布话题并提交审核。'}</p>{query&&<button className="retry" onClick={()=>setInput('')}>清除搜索</button>}</div>}
        </div>
       </section><aside className="rail"><section className="rail-card"><h3><Sparkles/> 关于社区</h3><p>一群热爱开源、知识和创造的人，共同构建更自由的数字生活。</p><small>OPEN SOURCE. OPEN IDEAS.</small></section><section className="rail-card"><h3><Compass/> 探索板块</h3>{categories.slice(0,5).map(c=><button className="rail-category" key={c.id} onClick={()=>select(c.id)}>{glyphs[c.id]}<span>{c.name}</span><ChevronRight/></button>)}</section><div className="footnote">用代码连接想法，以开放赋予自由。<br/>Built with Cloudflare & open source.</div></aside></div>
     </>:<>
