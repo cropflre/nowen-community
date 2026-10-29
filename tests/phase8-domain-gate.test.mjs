@@ -26,6 +26,8 @@ test('Staging domain gate locks Access, Turnstile, and forbids public previews',
     'assertAnonymousDenied()', '/api/health', 'FAIL OPEN', 'FAIL CLOSED'
   ]) assert.ok(code.includes(value), 'missing guard: ' + value);
   assert.match(code, /async function detachExactDomain/);
+  assert.match(code, /let deletionError=null/);
+  assert.match(code, /if \(!target\(await getDomains\(\)\)\)/);
   assert.match(code, /if \(ACTION === 'disable'\)/);
   assert.match(code, /else if \(ACTION === 'check'\)/);
   assert.doesNotMatch(code, /\/dns_records.*'POST'|\/dns_records.*'DELETE'|d1\/database.*'POST'/);

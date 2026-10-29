@@ -1,6 +1,6 @@
 import {Hono} from 'hono';
 import {verifyTurnstile} from './turnstile';
-import {createSession,denyCrossSite,getActor,oneLine,parseBody,passwordHash,randomId,rateLimit,requireActor,revokeSession,seconds,sha256,stringField,validRequestKey,verifyPassword,type CommunityBindings} from './security';
+import {createSession,denyCrossSite,getActor,oneLine,parseBody,passwordHash,randomId,rateLimit,requireActor,revokeSession,seconds,stringField,validRequestKey,verifyPassword,type CommunityBindings} from './security';
 const app=new Hono<{Bindings:CommunityBindings}>();
 app.use('*',async(c,next)=>{if(!['GET','HEAD','OPTIONS'].includes(c.req.method)&&denyCrossSite(c))return c.json({error:'ORIGIN_DENIED'},403);await next();});
 app.get('/me',async c=>{const actor=await getActor(c);return c.json({user:actor});});
@@ -11,8 +11,7 @@ app.post('/auth/register',async c=>{
  const username=stringField(body,'username',24)?.trim().toLowerCase()||'';
  const displayName=oneLine(stringField(body,'displayName',36)||'');
  const password=stringField(body,'password',128)||'';
- const invite=stringField(body,'invitation',160)||'';
- if(!/^[a-z0-9_]{3,24}$/.test(username)||displayName.length<2||displayName.length>32||password.length<12||!/^[a-zA-Z0-9_-]{24,100}$/.test(invite))return c.json({error:'INVALID_INPUT'},400);
+ if(!/^[a-z0-9_]{3,24}$/.test(username)||displayName.length<2||displayName.length>32||password.length<12)return c.json({error:'INVALID_INPUT'},400);
  const pepper=c.env.PASSWORD_PEPPER;
  if(!pepper)return c.json({error:'AUTH_UNAVAILABLE'},503);
  let hash:string;
@@ -20,12 +19,11 @@ app.post('/auth/register',async c=>{
    console.error('registration_password_hash_failed',error instanceof Error?error.name:'unknown');
    return c.json({error:'AUTH_UNAVAILABLE'},503);
  }
- const codeHash=await sha256(invite),id=randomId(),now=seconds();
- try{const rows=await c.env.DB.batch([
-  c.env.DB.prepare("INSERT INTO users(id,username,display_name,password_hash,role,state,created_at) SELECT ?,?,?,?,'member','active',? WHERE EXISTS (SELECT 1 FROM invitations WHERE code_hash=? AND used_by IS NULL AND (expires_at IS NULL OR expires_at>?))").bind(id,username,displayName,hash,now,codeHash,now),
-  c.env.DB.prepare('UPDATE invitations SET used_by=?,used_at=? WHERE code_hash=? AND used_by IS NULL AND (expires_at IS NULL OR expires_at>?) AND EXISTS(SELECT 1 FROM users WHERE id=?)').bind(id,now,codeHash,now,id)
- ]);
- if((rows[0].meta.changes??0)!==1||(rows[1].meta.changes??0)!==1)return c.json({error:'INVITATION_INVALID'},400);
+ const id=randomId(),now=seconds();
+ try {
+  const result=await c.env.DB.prepare("INSERT INTO users(id,username,display_name,password_hash,role,state,created_at) VALUES(?,?,?,?,'member','active',?)")
+   .bind(id,username,displayName,hash,now).run();
+  if((result.meta.changes??0)!==1)return c.json({error:'REGISTRATION_FAILED'},409);
  await createSession(c,id);return c.json({user:{id,username,displayName,role:'member'}},201);
  }catch{return c.json({error:'REGISTRATION_FAILED'},409);}
 });

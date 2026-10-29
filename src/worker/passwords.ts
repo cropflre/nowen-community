@@ -20,7 +20,7 @@ async function derive(password: string, pepper: string, salt: Uint8Array) {
   const prehash = await keyedPassword(password, pepper);
   const key = await crypto.subtle.importKey('raw', prehash, 'PBKDF2', false, ['deriveBits']);
   return hex(await crypto.subtle.deriveBits({
-    name: 'PBKDF2', salt, iterations: PASSWORD_ROUNDS, hash: 'SHA-256'
+    name: 'PBKDF2', salt: salt as Uint8Array<ArrayBuffer>, iterations: PASSWORD_ROUNDS, hash: 'SHA-256'
   }, key, 256));
 }
 export async function passwordHash(password: string, pepper: string) {

@@ -9,7 +9,7 @@ test('dedicated Cloudflare Worker with isolated D1',()=>{
  assert.equal(c.d1_databases[0].database_name,'nowen-community-db');
  assert.deepEqual(c.assets.run_worker_first,['/api/*','/t/*']);
 });
-test('invite-only database schema and feed indexes',()=>{
+test('backward-compatible database schema and feed indexes',()=>{
  const sql=read('migrations/0001_init.sql');
  for(const n of ['users','invitations','sessions','categories','topics','replies','topic_likes','bookmarks','reports','audit_logs','uploads'])
    assert.ok(sql.includes('CREATE TABLE IF NOT EXISTS '+n+' '),n);
@@ -22,9 +22,9 @@ test('write APIs remain disabled in Phase 1',()=>{
  assert.ok(api.includes("app.all('/api/*'"));
  assert.ok(!api.includes('app.post('));
 });
-test('UI labels invite beta instead of enabling unfinished flows',()=>{
+test('UI reflects open registration with content moderation',()=>{
  const ui=read('src/client/main.tsx');
- assert.ok(ui.includes('邀请制内测'));
+ assert.ok(ui.includes('开放注册 · 内容先审'));
  assert.ok(ui.includes('AuthDialog'));
  assert.ok(ui.includes('TopicEngagement'));
 });

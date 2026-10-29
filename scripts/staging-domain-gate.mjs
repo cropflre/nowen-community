@@ -132,7 +132,12 @@ async function detachExactDomain() {
   assert.equal(existing.service, WORKER, 'Refusing to detach another Worker domain');
   assert.equal(existing.zone_id, ZONE, 'Refusing to detach a domain in another zone');
   assert.ok(existing.id, 'Missing custom domain ID');
-  await cf(ROOT + '/workers/domains/' + encodeURIComponent(existing.id), 'DELETE');
+  // Cloudflare can successfully delete a domain while returning HTTP 200
+  // without a conventional {success:true} body. The read-after-write
+  // absence check is the authoritative outcome.
+  let deletionError=null;
+  try { await cf(ROOT + '/workers/domains/' + encodeURIComponent(existing.id), 'DELETE'); }
+  catch (error) { deletionError=error; }
   for (let attempt = 0; attempt < 12; attempt++) {
     if (!target(await getDomains())) {
       console.log('Phase 8 staging custom domain detached.');
@@ -140,7 +145,7 @@ async function detachExactDomain() {
     }
     await new Promise(resolve => setTimeout(resolve, 1500));
   }
-  throw new Error('Detach not confirmed; inspect Cloudflare Workers Domains immediately');
+  throw new Error('Detach not confirmed; inspect Cloudflare Workers Domains immediately' + (deletionError ? ': ' + deletionError : ''));
 }
 function accessDenial(res, location, text) {
   const redirected = [301, 302, 303, 307, 308].includes(res.status);

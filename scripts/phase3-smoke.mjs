@@ -1,29 +1,22 @@
 import assert from 'node:assert/strict';
-import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 const base=process.env.SMOKE_BASE??'http://127.0.0.1:5173';
-const hashes=['phase3-admin-invite-000000000001','phase3-member-invite-00000000001'];
-const tokenHash=s=>createHash('sha256').update(s).digest('hex');
 function sql(statement){return execFileSync('npx',['wrangler','d1','execute','nowen-community-db','--local','--command',statement],{encoding:'utf8',timeout:60000})}
-if(process.argv.includes('--seed')){
- for(let i=0;i<hashes.length;i++)sql("INSERT OR IGNORE INTO invitations(id,code_hash,expires_at) VALUES('phase3-invite-"+i+"','"+tokenHash(hashes[i])+"',4102444800)");
- console.log('Seeded phase3 LOCAL-only invitations');process.exit(0);
-}
 const origin=new URL(base).origin;
 async function req(path,method='GET',data,auth,extra={}){
  const response=await fetch(base+'/api/v1'+path,{method,headers:{Origin:origin,...(data===undefined?{}:{'Content-Type':'application/json'}),...(auth?{Cookie:auth}:{}),...extra},body:data===undefined?undefined:JSON.stringify(data)});
  return {status:response.status,data:await response.json().catch(()=>({})),cookie:response.headers.get('set-cookie')};
 }
 const unique=Date.now().toString(36);
-async function register(role,code){
+async function register(role){
  const username='p3'+role+unique.slice(-9);
- const registered=await req('/auth/register','POST',{username,displayName:role+' reviewer',password:'long strong test password for phase three',invitation:code});
+ const registered=await req('/auth/register','POST',{username,displayName:role+' reviewer',password:'long strong test password for phase three'});
  assert.equal(registered.status,201,JSON.stringify(registered.data));
  return {id:registered.data.user.id,username,cookie:registered.cookie.split(';')[0]};
 }
-const reviewer=await register('admin',hashes[0]);
+const reviewer=await register('admin');
 sql("UPDATE users SET role='admin' WHERE id='"+reviewer.id+"'");
-const member=await register('user',hashes[1]);
+const member=await register('user');
 const category='note';
 const create=await req('/topics','POST',{categoryId:category,title:'Phase Three moderated topic',content:'This post should only appear after moderation.'},member.cookie,{'Idempotency-Key':'phase3-create-topic-0123456789'});
 assert.equal(create.status,201,JSON.stringify(create.data));

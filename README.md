@@ -11,11 +11,11 @@
 - 社区基础 UI：明暗主题、移动端布局、版块、最新与热门排序、搜索、分页、空状态。
 - Hono 只读 API：GET /api/health、GET /api/v1/categories、GET /api/v1/topics、GET /api/v1/topics/:slug。
 - 主题页 SEO：GET /t/:slug 服务端输出真实主题 HTML、title、description 与 canonical；未发布内容不能通过公共接口读取。
-- 独立数据库模型：用户、邀请码、会话、版块、主题、回复、收藏、点赞、举报、审计、附件。
+- 独立数据库模型：用户、会话（历史邀请码表保留）、版块、主题、回复、收藏、点赞、举报、审计、附件。
 - 安全默认值：禁用 workers.dev，独立 D1 已创建且完成手动 SQL 初始化，全部写接口关闭。
 - CI：类型检查、单元与 API 安全边界测试、构建。
 
-**已在后续阶段开发**邀请注册、登录、草稿、回复/点赞/收藏、审核后台、R2 上传、限流和 Playwright 测试。仍需真实 Cloudflare 部署、Turnstile 验证、国内网络验收及合规审查，不能宣称论坛已上线。
+**已在后续阶段开发**开放注册、登录、草稿、回复/点赞/收藏、审核后台、R2 上传、限流和 Playwright 测试。仍需真实 Cloudflare 部署、Turnstile 验证、国内网络验收及合规审查，不能宣称论坛已上线。
 
 ## 本地运行
 
@@ -47,9 +47,9 @@ npx wrangler d1 migrations list nowen-community-db --remote
 **远端资源实际状态（2026-10-29）：** 已创建独立 nowen-community-db，应用 0001_init.sql 的 SQL 并查询确认 11 张业务表、6 条默认板块。使用 Cloudflare API 手动执行 SQL 不会登记 Wrangler 的 d1_migrations 记录；首次使用 wrangler migrations apply --remote 时会重放幂等 0001_init.sql 并登记，必须审阅运行输出。尚未部署 Worker 或绑定 community.nowen.cn。
 
 
-## Phase 2（邀请制成员与讨论）
+## Phase 2（开放注册与成员讨论）
 
-阶段 2 的功能分支加入邀请码注册、登录、可撤销会话、草稿自动保存、发帖提交待审、回复、点赞与收藏。所有用户生成内容**默认待审**，尚未实现 Phase 3 的管理员审核与防刷验收，不可直接部署公众论坛。
+阶段 2 提供无需邀请码的用户注册、登录、可撤销会话、草稿自动保存、发帖提交待审、回复、点赞与收藏。所有用户生成内容**默认待审**，尚未实现 Phase 3 的管理员审核与防刷验收，不可直接部署公众论坛。
 
 本地测试和邀请码签发见 [docs/PHASE2.md](docs/PHASE2.md)。任何真实远端 D1 迁移必须人工审查，保留原有数据。
 
@@ -69,7 +69,7 @@ Cloudflare 上已建立与正式环境完全隔离的 `nowen-community-staging-d
 
 详细配置、GitHub 手动预检、`CLOUDFLARE_ENV=staging` 构建、受保护 Worker 部署以及后续 Cloudflare Access 准入要求，见 [Phase 5 Staging 手册](docs/PHASE5_STAGING.md)。
 
-**重要：测试站 `staging-community.nowen.cn` 尚未绑定或向公网开放。** 若需要真实浏览器验收，必须先启用 Worker 级 Cloudflare Access 并验证未授权访问被阻止；不能直接公开测试域名。
+**重要：staging 域名仅能在严格 Cloudflare Access 保护下人工开启；域名启停状态以 Cloudflare API 为准。** 若需要真实浏览器验收，必须先启用 Worker 级 Cloudflare Access 并验证未授权访问被阻止；不能直接公开测试域名。
 
 
 ## Phase 6 · Cloudflare Access 安全准入

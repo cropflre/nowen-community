@@ -2,7 +2,7 @@ import {test,expect} from '@playwright/test';
 test('community home, themes and responsive navigation',async({page,isMobile})=>{
  await page.goto('/');
  await expect(page.getByRole('heading',{name:/好的想法/})).toBeVisible();
- await expect(page.getByText('邀请制内测中')).toBeVisible();
+ await expect(page.getByText('开放注册 · 内容先审')).toBeVisible();
  const before=await page.locator('html').getAttribute('data-theme');
  await page.getByRole('button',{name:'切换明暗主题'}).click();
  await expect(page.locator('html')).toHaveAttribute('data-theme',before==='dark'?'light':'dark');
@@ -12,17 +12,15 @@ test('community home, themes and responsive navigation',async({page,isMobile})=>
   await page.getByRole('button',{name:'关闭导航'}).click();
  }
 });
-test('invite registration, draft autosave and pending-only submission',async({page})=>{
- // Browser projects each consume their own isolated invitation from the local seed.
- const invitation=test.info().project.name==='chromium-mobile'?'phase3-admin-invite-000000000001':'phase3-member-invite-00000000001';
+test('open registration, draft autosave and pending-only submission',async({page})=>{
  await page.goto('/');
  await page.getByRole('button',{name:/登录 \/ 注册/}).click();
- await page.getByRole('button',{name:'邀请码注册'}).click();
+ await page.getByRole('button',{name:'免费注册'}).click();
  const username='e2e'+Date.now().toString(36).slice(-10);
  await page.getByPlaceholder('英文字母、数字或下划线').fill(username);
  await page.getByPlaceholder('在社区展示的名称').fill('测试创作者');
  await page.getByPlaceholder('至少 12 位密码').fill('A long and unique test password! 2026');
- await page.getByPlaceholder('管理员提供的一次性邀请码').fill(invitation);
+ await expect(page.getByPlaceholder('管理员提供的一次性邀请码')).toHaveCount(0);
  await page.getByRole('button',{name:'创建账号'}).click();
  await expect(page.getByRole('button',{name:/测试创作者.*退出/})).toBeVisible({timeout:15000});
  await page.getByRole('button',{name:'开启一个话题'}).click();

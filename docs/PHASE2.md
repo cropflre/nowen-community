@@ -1,10 +1,10 @@
-# Phase 2 · 邀请制论坛（功能分支，不直接上线）
+# Phase 2 · 社区成员与讨论（开放注册，受保护内测）
  
 ## 用户路径
 
-1. 管理员在本地执行 `node scripts/issue-invite.mjs 7`，将随机邀请码私下发送给受邀用户，生成的哈希插入**独立** D1 `nowen-community-db`。
-2. 注册输入 `username`（3-24 位英文、数字、下划线）、昵称、12 位以上密码和邀请码。
-3. 服务端对邀请码 SHA-256 后，在 D1 单一事务内 **INSERT 用户 SELECT 有效邀请 + UPDATE 邀请消耗**，多次使用只允许成功一次。
+1. 用户在网页选择「免费注册」，输入 `username`（3–24 位英文字母、数字、下划线）、昵称和至少 12 位密码。
+2. 服务端执行 Turnstile Siteverify、同源校验和 IP 限流（每 10 分钟最多 5 次），创建 `role='member'` 的用户；同名账号返回 409。
+3. 不再需要邀请码；已有 `invitations` 表仅为历史迁移兼容保留，不在注册路径读取或写入。
 4. 登录时用 WebCrypto HMAC-SHA256 服务端 Pepper 预哈希 + Cloudflare Workers 兼容的 PBKDF2-SHA256（100,000 轮，随机盐）验证密码；会话只存 SHA-256 Token 哈希，Cookie `HttpOnly; SameSite=Lax; Secure(HTTPS)`，一周有效。
 5. 登录后打开新话题，Markdown 编辑，停止输入后自动保存草稿；提交时从 draft 原子更新为 pending。**未配置审核后台前不会公开显示**。
 6. 公开话题可点赞、收藏和回复；新回复进入 pending，仅本人可预览。
@@ -25,13 +25,12 @@
 ```bash
 npm install
 npx wrangler d1 migrations apply nowen-community-db --local
-node scripts/phase2-smoke.mjs --seed
 npm run dev -- --host 127.0.0.1
 # 第二终端
 node scripts/phase2-smoke.mjs
 ```
 
-切勿把本地联调邀请码写到远端 D1；真实邀请码通过 `node scripts/issue-invite.mjs` 生成。测试脚本会在**本地** D1 手动把测试主题标为已发布，以验证回复/点赞/收藏；生产没有自动公开 API。
+本地 smoke 测试直接执行开放注册，不预置邀请码；审核状态只在**本地** D1 变更以验证回复/点赞/收藏。管理员角色必须由专属 D1 后台受控授予，没有自动提升后门。
 
 ## 未解决上线门槛
 
