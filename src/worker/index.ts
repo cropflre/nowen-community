@@ -77,6 +77,12 @@ app.get('/api/v1/topics/:slug', async c => {
 app.get('/t/:slug', async c => {
   const item = await getPublicTopic(drizzle(c.env.DB), c.req.param('slug'));
   if (!item) return c.text('Topic not found', 404);
+  // A missing static-assets binding must not turn every published topic into 500.
+  // The staging deploy gate checks that the binding is present before ingress.
+  if (!c.env.ASSETS) {
+    console.error('community_assets_binding_missing');
+    return c.text('Page unavailable', 503);
+  }
   const template = await c.env.ASSETS.fetch(new Request(new URL('/', c.req.url)));
   if (!template.ok) return c.text('Page unavailable', 503);
   return c.html(seoTopicHtml(await template.text(), item));

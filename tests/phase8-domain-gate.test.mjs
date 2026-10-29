@@ -25,6 +25,7 @@ test('Staging domain gate locks Access, Turnstile, and forbids public previews',
     'Access must cover ONLY the staging Worker', 'Require one exact-email Include',
     'assertAnonymousDenied()', '/api/health', 'FAIL OPEN', 'FAIL CLOSED'
   ]) assert.ok(code.includes(value), 'missing guard: ' + value);
+  assert.match(code, /bindings.get\('ASSETS'\)\?\.type/);
   assert.match(code, /async function detachExactDomain/);
   assert.match(code, /let deletionError=null/);
   assert.match(code, /if \(!target\(await getDomains\(\)\)\)/);
