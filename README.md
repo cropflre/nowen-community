@@ -2,7 +2,7 @@
 
 分享经验、解决问题、一起创造。
 
-**当前状态：Phase 1 基础工程 / 邀请制内测准备中。未开放公众注册、发帖、回复或审核。**
+**当前状态：Phase 1–4 代码已合并，D1 迁移和私有 R2 已就绪，Turnstile 组件已创建；Worker 尚未部署，论坛未公开运营。**
 
 基于 Cloudflare Workers、React、TypeScript、Vite、Tailwind CSS 4、Hono、Drizzle ORM、D1 构建。与 NOWEN 官网、官网留言板、Nowen Note 生产数据库完全隔离。
 
@@ -15,7 +15,7 @@
 - 安全默认值：禁用 workers.dev，独立 D1 已创建且完成手动 SQL 初始化，全部写接口关闭。
 - CI：类型检查、单元与 API 安全边界测试、构建。
 
-**尚未实现：** 邀请注册、登录、写入/回复/点赞、Markdown 编辑器、管理员审核、Turnstile、R2 上传、持久限流与 E2E。这些功能将在后续阶段实现，不能将基础工程宣传为论坛已上线。
+**已在后续阶段开发**邀请注册、登录、草稿、回复/点赞/收藏、审核后台、R2 上传、限流和 Playwright 测试。仍需真实 Cloudflare 部署、Turnstile 验证、国内网络验收及合规审查，不能宣称论坛已上线。
 
 ## 本地运行
 
@@ -32,9 +32,8 @@ npm run dev
 ## Cloudflare 预发布准备（不要直接执行生产部署）
 
 ~~~bash
-npx wrangler d1 create nowen-community-db
-# 独立 D1 已经创建，wrangler.jsonc 已写入其真实 ID；核对后才执行下一条迁移命令
-npx wrangler d1 migrations apply nowen-community-db --remote
+npx wrangler d1 migrations list nowen-community-db --remote
+# 三项远端迁移已经完成，禁止重复执行或重建现有数据库
 ~~~
 
 禁止填写 nowen-site-stats 或 Nowen Note 的 database_id。生产域名 community.nowen.cn 在完成后续阶段的安全、SEO 与合规验收之前不得开放公众发帖。
@@ -57,4 +56,9 @@ npx wrangler d1 migrations apply nowen-community-db --remote
 
 ## Phase 4 · 安全预发布流程
 
-[Phase 4 发布与验收手册](docs/PHASE4.md) 包含 Playwright 浏览器回归、受控发布工作流、独立 D1/R2 验证与回滚说明。尚未对公众开放；R2 账户启用和国内网络测试仍待完成。
+[Phase 4 发布与验收手册](docs/PHASE4.md) 包含 Playwright 浏览器回归、受控发布工作流、独立 D1/R2 验证与回滚说明。尚未对公众开放；R2 与独立 Turnstile 已创建，真实部署及国内网络测试仍待完成。
+
+
+## Turnstile 配置
+
+独立组件 `nowen-community` 已创建，公开 Site Key 已写入 Wrangler 配置。Secret Key 必须由管理员在受保护的 GitHub Environment 中设置，具体见 [Turnstile 配置指南](docs/TURNSTILE.md)。当前不公开论坛。
