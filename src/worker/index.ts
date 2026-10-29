@@ -35,6 +35,7 @@ app.get('/api/v1/topics', async c => {
   const query = c.req.query('q')?.trim().slice(0, 80) || '';
   const category = c.req.query('category')?.slice(0, 60) || '';
   const page = Math.min(100, Math.max(1, Number.parseInt(c.req.query('page') || '1', 10) || 1));
+  const sort = c.req.query('sort') === 'popular' ? 'popular' : 'latest';
   const condition = and(
     eq(topics.status, 'published'),
     category ? eq(topics.categoryId, category) : undefined,
@@ -48,7 +49,7 @@ app.get('/api/v1/topics', async c => {
   }).from(topics)
     .innerJoin(categories, eq(topics.categoryId, categories.id))
     .innerJoin(users, eq(topics.authorId, users.id))
-    .where(condition).orderBy(desc(topics.pinned), desc(topics.createdAt))
+    .where(condition).orderBy(desc(topics.pinned), query ? sql`CASE WHEN ${topics.title} LIKE ${'%' + query + '%'} THEN 0 ELSE 1 END` : sql`0`, sort === 'popular' ? desc(topics.replyCount) : desc(topics.createdAt), desc(topics.createdAt))
     .limit(21).offset((page - 1) * 20);
   return c.json({ items: rows.slice(0, 20).map(row => ({...row, excerpt: row.content.slice(0, 180), content: undefined})), nextPage: rows.length > 20 ? page + 1 : null });
 });

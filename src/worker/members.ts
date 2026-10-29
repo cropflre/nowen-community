@@ -47,6 +47,31 @@ app.post('/auth/login',async c=>{
  await createSession(c,user.id);return c.json({user:{id:user.id,username:user.username,displayName:user.displayName,role:user.role}});
 });
 app.post('/auth/logout',async c=>{await revokeSession(c);return c.json({ok:true});});
+// A small account settings flow: no email recovery or insecure reset tokens.
+app.post('/me/profile',async c=>{
+ const user=await getActor(c);if(!user)return c.json({error:'UNAUTHORIZED'},401);
+ const body=await parseBody(c,800);if(!body)return c.json({error:'INVALID_BODY'},400);
+ const name=oneLine(stringField(body,'displayName',32)||'');
+ if(name.length<2||name.length>32)return c.json({error:'INVALID_INPUT'},400);
+ await c.env.DB.prepare('UPDATE users SET display_name=? WHERE id=?').bind(name,user.id).run();
+ return c.json({user:{...user,displayName:name}});
+});
+app.post('/me/password',async c=>{
+ const user=await getActor(c);if(!user)return c.json({error:'UNAUTHORIZED'},401);
+ if(!await rateLimit(c,'change-password:'+user.id,5,3600))return c.json({error:'RATE_LIMITED'},429);
+ const body=await parseBody(c,600);if(!body)return c.json({error:'INVALID_BODY'},400);
+ const previous=stringField(body,'currentPassword',128),next=stringField(body,'newPassword',128);
+ if(!previous||!next||next.length<12||next===previous)return c.json({error:'INVALID_INPUT'},400);
+ const pepper=c.env.PASSWORD_PEPPER;if(!pepper)return c.json({error:'AUTH_UNAVAILABLE'},503);
+ const row=await c.env.DB.prepare('SELECT password_hash AS passwordHash FROM users WHERE id=?').bind(user.id).first<{passwordHash:string}>();
+ if(!row||!await verifyPassword(previous,row.passwordHash,pepper))return c.json({error:'INVALID_CREDENTIALS'},401);
+ const replacement=await passwordHash(next,pepper);
+ const changes=await c.env.DB.prepare('UPDATE users SET password_hash=? WHERE id=? AND password_hash=?').bind(replacement,user.id,row.passwordHash).run();
+ if(!changes.meta.changes)return c.json({error:'CONFLICT'},409);
+ await c.env.DB.prepare('DELETE FROM sessions WHERE user_id=?').bind(user.id).run();
+ await createSession(c,user.id);
+ return c.json({ok:true});
+});
 app.get('/me/topics',async c=>{const user=await getActor(c);if(!user)return c.json({error:'UNAUTHORIZED'},401);const {results}=await c.env.DB.prepare('SELECT id,slug,category_id AS categoryId,title,content,status,updated_at AS updatedAt FROM topics WHERE author_id=? ORDER BY updated_at DESC LIMIT 100').bind(user.id).all();return c.json({items:results});});
 // Only the owner can delete an unpublished draft; no public content is affected.
 app.delete('/me/topics/:id',async c=>{
