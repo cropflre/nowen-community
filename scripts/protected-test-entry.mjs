@@ -56,9 +56,8 @@ async function change(enabled){
   return next;
 }
 async function verify(){
-  const [workers,apps,settings,subdomain,domains,routes,siteSubdomain]=await Promise.all([
+  const [workers,settings,subdomain,domains,routes,siteSubdomain]=await Promise.all([
     cf(root+'/workers/scripts'),
-    cf(root+'/access/apps'),
     cf(root+'/workers/scripts/'+worker+'/settings'),
     cf(subdomainPath),
     cf(root+'/workers/domains'),
@@ -78,9 +77,18 @@ async function verify(){
     'Unexpected staging custom domain');
   assert.ok(!routes.some(r=>r.script===worker),'Unexpected staging Worker route');
   assert.ok(typeof siteSubdomain.subdomain==='string'&&siteSubdomain.subdomain.length>0);
-  const matches=apps.filter(a=>a.name==='NOWEN Community Staging Access');
-  assert.equal(matches.length,1,'Expected exact one staging Access application');
-  const app=await cf(root+'/access/apps/'+matches[0].id);
+  // Direct lookup prevents silently filtered Access app lists with scoped tokens.
+  // This pinned ID is not a secret; the GitHub Cloudflare token still needs
+  // Account → Access: Apps and Policies → Read.
+  const accessId='d3894200-0bfe-4a51-aa41-aa98e93e2d98';
+  let app;
+  try {
+    app=await cf(root+'/access/apps/'+accessId);
+  } catch(error) {
+    throw new Error('GitHub Cloudflare token cannot read pinned staging Access app: grant Account Access: Apps and Policies Read (or check token resource scope). '+String(error));
+  }
+  assert.equal(app.id,accessId,'Wrong staging Access application ID');
+  assert.equal(app.name,'NOWEN Community Staging Access');
   assert.equal(app.type,'self_hosted');
   assert.deepEqual(app.destinations,[{type:'worker',worker_id:item.tag}],
     'Access must cover this Worker All traffic, and no other Worker');
