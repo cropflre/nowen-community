@@ -42,6 +42,8 @@ npm run check
 npx wrangler d1 migrations apply nowen-community-db --local
 node scripts/phase2-smoke.mjs --seed
 node scripts/phase3-smoke.mjs --seed
+# 仅本地联调使用；.dev.vars 已被 .gitignore 忽略，绝不可加入生产环境
+printf 'LOCAL_TEST_TURNSTILE=1\\n' > .dev.vars
 npm run dev -- --host 127.0.0.1
 # 第二终端
 node scripts/phase2-smoke.mjs
