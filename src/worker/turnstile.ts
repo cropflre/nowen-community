@@ -1,7 +1,7 @@
 import type { Context } from 'hono';
 import type { CommunityBindings } from './security';
 type C=Context<{Bindings:CommunityBindings}>;
-export const localRequest=(c:C)=>['localhost','127.0.0.1','[::1]'].includes(new URL(c.req.url).hostname)&&new URL(c.req.url).protocol==='http:'&&!c.req.header('CF-Connecting-IP');
+export const localRequest=(c:C)=>c.env.LOCAL_TEST_TURNSTILE==='1'&&['localhost','127.0.0.1','[::1]'].includes(new URL(c.req.url).hostname)&&new URL(c.req.url).protocol==='http:';
 export const turnstileRequired=(c:C)=>!localRequest(c);
 export async function verifyTurnstile(c:C,token:unknown):Promise<boolean>{
   if(!turnstileRequired(c)) return true;
