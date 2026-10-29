@@ -53,3 +53,8 @@ npx wrangler d1 migrations apply nowen-community-db --remote
 阶段 2 的功能分支加入邀请码注册、登录、可撤销会话、草稿自动保存、发帖提交待审、回复、点赞与收藏。所有用户生成内容**默认待审**，尚未实现 Phase 3 的管理员审核与防刷验收，不可直接部署公众论坛。
 
 本地测试和邀请码签发见 [docs/PHASE2.md](docs/PHASE2.md)。任何真实远端 D1 迁移必须人工审查，保留原有数据。
+
+
+## Phase 4 · 安全预发布流程
+
+[Phase 4 发布与验收手册](docs/PHASE4.md) 包含 Playwright 浏览器回归、受控发布工作流、独立 D1/R2 验证与回滚说明。尚未对公众开放；R2 账户启用和国内网络测试仍待完成。
