@@ -49,7 +49,7 @@ app.get('/api/v1/topics', async c => {
   }).from(topics)
     .innerJoin(categories, eq(topics.categoryId, categories.id))
     .innerJoin(users, eq(topics.authorId, users.id))
-    .where(condition).orderBy(desc(topics.pinned), query ? sql`CASE WHEN ${topics.title} LIKE ${'%' + query + '%'} THEN 0 ELSE 1 END` : sql`0`, sort === 'popular' ? desc(topics.replyCount) : desc(topics.createdAt), desc(topics.createdAt))
+    .where(condition).orderBy(desc(topics.pinned), query ? sql`CASE WHEN ${topics.title} LIKE ${'%' + query + '%'} THEN 0 ELSE 1 END` : sql`CASE WHEN 1=1 THEN 0 ELSE 1 END`, sort === 'popular' ? desc(topics.replyCount) : desc(topics.createdAt), desc(topics.createdAt))
     .limit(21).offset((page - 1) * 20);
   return c.json({ items: rows.slice(0, 20).map(row => ({...row, excerpt: row.content.slice(0, 180), content: undefined})), nextPage: rows.length > 20 ? page + 1 : null });
 });
