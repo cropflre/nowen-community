@@ -23,6 +23,8 @@ assert.equal(generated.name,'nowen-community-staging');
 assert.equal(generated.workers_dev,false);
 assert.equal(generated.preview_urls,false);
 assert.ok(!generated.routes && !generated.route && !generated.custom_domain);
+assert.equal(generated.assets?.binding, 'ASSETS', 'Missing runtime static-assets binding for /t/:slug SSR');
+assert.ok(generated.assets?.run_worker_first?.includes('/t/*'), 'Topic HTML must execute Worker first');
 assert.equal(generated.d1_databases?.[0]?.database_id,expected.d1_databases[0].database_id);
 assert.equal(generated.d1_databases?.[0]?.binding,'DB');
 assert.equal(generated.r2_buckets?.[0]?.bucket_name,expected.r2_buckets[0].bucket_name);

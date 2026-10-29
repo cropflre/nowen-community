@@ -81,6 +81,7 @@ if (process.env.STAGING_DEPLOYED === '1') {
   ]);
   assert.equal(subdomain.enabled, false, 'Staging workers.dev must be disabled');
   const bindings = new Map((settings.bindings || []).map(b=>[b.name,b]));
+  assert.equal(bindings.get('ASSETS')?.type, 'assets', 'Missing ASSETS binding: topic SSR will fail');
   assert.equal(bindings.get('DB')?.id, dbId);
   assert.equal(bindings.get('MEDIA')?.bucket_name, bucket.name);
   assert.equal(bindings.get('TURNSTILE_SITE_KEY')?.type, 'plain_text');

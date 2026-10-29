@@ -93,6 +93,7 @@ async function verifyReadiness() {
   const worker = workers.find(x => x.id === WORKER);
   assert.ok(worker?.tag, 'Staging Worker not deployed');
   const bindings = new Map((settings.bindings || []).map(x => [x.name, x]));
+  assert.equal(bindings.get('ASSETS')?.type, 'assets', 'Missing ASSETS binding: do not open broken topic pages');
   assert.equal(bindings.get('DB')?.id, stage.d1_databases[0].database_id);
   assert.equal(bindings.get('MEDIA')?.bucket_name, stage.r2_buckets[0].bucket_name);
   assert.equal(bindings.get('TURNSTILE_SITE_KEY')?.text, stage.vars.TURNSTILE_SITE_KEY);
