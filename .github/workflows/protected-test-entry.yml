@@ -11,7 +11,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: community-protected-test-entry
+  group: community-staging-ingress
   cancel-in-progress: false
 jobs:
   check:
