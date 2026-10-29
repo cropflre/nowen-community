@@ -1,0 +1,60 @@
+name: NOWEN Community Staging Domain Gate
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Read-only check, attach Access-protected staging domain, or emergency detach
+        required: true
+        type: choice
+        options: [check, enable-protected-domain, disable-domain]
+        default: check
+permissions:
+  contents: read
+concurrency:
+  group: community-staging-ingress
+  cancel-in-progress: false
+jobs:
+  check:
+    if: github.ref == 'refs/heads/main' && inputs.action == 'check'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify Access, staging resources, Turnstile and absent DNS (read-only)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node scripts/staging-domain-gate.mjs check
+  enable:
+    if: github.ref == 'refs/heads/main' && inputs.action == 'enable-protected-domain'
+    runs-on: ubuntu-latest
+    environment: community-internal-release
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Require manually reviewed environment unlock
+        env:
+          RELEASE_UNLOCK: ${{ secrets.COMMUNITY_RELEASE_UNLOCK }}
+        run: test "$RELEASE_UNLOCK" = "INTERNAL_UNROUTED_WORKER_ONLY"
+      - name: Attach only staging domain, verify anonymous Access denial, rollback on failure
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node scripts/staging-domain-gate.mjs enable
+  disable:
+    if: github.ref == 'refs/heads/main' && inputs.action == 'disable-domain'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Emergency detach only staging custom domain (no Access read required)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node scripts/staging-domain-gate.mjs disable
