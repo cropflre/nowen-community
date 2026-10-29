@@ -46,3 +46,10 @@ npx wrangler d1 migrations apply nowen-community-db --remote
 尚未指定开源许可证；在正式公开发布前需确定许可证并提交 LICENSE 文件。
 
 **远端资源实际状态（2026-10-29）：** 已创建独立 nowen-community-db，应用 0001_init.sql 的 SQL 并查询确认 11 张业务表、6 条默认板块。使用 Cloudflare API 手动执行 SQL 不会登记 Wrangler 的 d1_migrations 记录；首次使用 wrangler migrations apply --remote 时会重放幂等 0001_init.sql 并登记，必须审阅运行输出。尚未部署 Worker 或绑定 community.nowen.cn。
+
+
+## Phase 2（邀请制成员与讨论）
+
+阶段 2 的功能分支加入邀请码注册、登录、可撤销会话、草稿自动保存、发帖提交待审、回复、点赞与收藏。所有用户生成内容**默认待审**，尚未实现 Phase 3 的管理员审核与防刷验收，不可直接部署公众论坛。
+
+本地测试和邀请码签发见 [docs/PHASE2.md](docs/PHASE2.md)。任何真实远端 D1 迁移必须人工审查，保留原有数据。

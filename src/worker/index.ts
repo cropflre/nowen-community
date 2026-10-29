@@ -3,6 +3,7 @@ import { and, desc, eq, like, or, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 import { categories, topics, users } from '../db/schema';
 import { seoTopicHtml } from './seo';
+import memberRoutes from './members';
 
 type Bindings = {
   DB: D1Database;
@@ -79,7 +80,10 @@ app.get('/t/:slug', async c => {
   return c.html(seoTopicHtml(await template.text(), item));
 });
 
-// Fail closed: visitor writes/auth/admin functions are not public in stage 1.
+// Phase 2: invitation-only member workflows. Every mutation validates Origin and session.
+app.route('/api/v1',memberRoutes);
+
+// Unimplemented admin/moderation routes fail closed.
 app.all('/api/*', c => c.json({ error: 'not_found' }, 404));
 
 app.onError((error, c) => {
