@@ -14,7 +14,7 @@ community.nowen.cn -> Cloudflare Workers (静态页面 + Hono /api/*) -> 专属 
 ## 关键隔离
 
 - 不复用官网 nowen-site-stats D1，不共享生产密钥。
-- wrangler.jsonc 内数据库 ID 00000000-0000-4000-8000-000000000000 为未初始化占位值，仅便于本地工程启动。
+- wrangler.jsonc 已配置新建的独立 D1 ID。2026-10-29 通过 Cloudflare API 手动初始化 11 张表、6 个分类；Wrangler 的迁移跟踪表可能尚无基线记录，首次运行官方迁移前需审阅状态，0001_init.sql 使用 IF NOT EXISTS/INSERT OR IGNORE 幂等设计。
 - Cloudflare 自定义域名和实际 R2 资源将在部署审查后创建，不抢占其他 NOWEN DNS 记录。
 
 ## SEO 和内容安全
