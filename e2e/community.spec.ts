@@ -19,7 +19,7 @@ test('open registration, draft autosave and pending-only submission',async({page
  const username='e2e'+Date.now().toString(36).slice(-10);
  await page.getByPlaceholder('英文字母、数字或下划线').fill(username);
  await page.getByPlaceholder('在社区展示的名称').fill('测试创作者');
- await page.getByPlaceholder('至少 12 位密码').fill('A long and unique test password! 2026');
+ await page.getByPlaceholder('至少 6 位密码').fill('638472');
  await expect(page.getByPlaceholder('管理员提供的一次性邀请码')).toHaveCount(0);
  await page.getByRole('button',{name:'创建账号'}).click();
  await expect(page.getByRole('button',{name:/测试创作者.*账号/})).toBeVisible({timeout:15000});
