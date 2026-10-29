@@ -1,8 +1,13 @@
 import { Hono } from 'hono';
-import { getActor,parseBody,rateLimit,randomId,seconds,stringField,type CommunityBindings } from './security';
+import { denyCrossSite,getActor,parseBody,rateLimit,randomId,seconds,stringField,type CommunityBindings } from './security';
 import { verifyTurnstile,turnstileRequired } from './turnstile';
 
 const mod=new Hono<{Bindings:CommunityBindings}>();
+// Admin actions, reports and uploads use the same CSRF rules as member mutations.
+mod.use('*',async(c,next)=>{
+ if(!['GET','HEAD','OPTIONS'].includes(c.req.method)&&denyCrossSite(c))return c.json({error:'ORIGIN_DENIED'},403);
+ await next();
+});
 const admin=async(c:any)=>{const user=await getActor(c);return user&&['admin','moderator'].includes(user.role)?user:null;};
 const owner=async(c:any)=>{const user=await getActor(c);return user?.role==='admin'?user:null;};
 const typeOf=(value:unknown)=>value==='topic'||value==='reply'?value:null;
@@ -70,7 +75,7 @@ mod.post('/admin/review',async c=>{
 });
 mod.get('/admin/reports',async c=>{
  const user=await admin(c);if(!user)return c.json({error:'FORBIDDEN'},403);
- const {results}=await c.env.DB.prepare("SELECT r.id,r.reason,r.target_type AS type,r.target_id AS targetId,r.created_at AS createdAt,u.username AS reporter FROM reports r JOIN users u ON r.reporter_id=u.id WHERE r.status='open' ORDER BY r.created_at ASC LIMIT 60").all();
+ const {results}=await c.env.DB.prepare("SELECT r.id,r.reason,r.target_type AS type,r.target_id AS targetId,r.created_at AS createdAt,u.username AS reporter,COALESCE(t.title,rt.title,'内容已不可用') AS topicTitle,SUBSTR(COALESCE(t.content,rr.content,''),1,800) AS targetPreview FROM reports r JOIN users u ON r.reporter_id=u.id LEFT JOIN topics t ON r.target_type='topic' AND t.id=r.target_id LEFT JOIN replies rr ON r.target_type='reply' AND rr.id=r.target_id LEFT JOIN topics rt ON rt.id=rr.topic_id WHERE r.status='open' ORDER BY r.created_at ASC LIMIT 60").all();
  return c.json({items:results});
 });
 mod.post('/admin/reports/:id/resolve',async c=>{
@@ -91,6 +96,47 @@ mod.post('/admin/users/:id/suspend',async c=>{
    c.env.DB.prepare("UPDATE users SET state='suspended' WHERE id=? AND role='member' AND state='active'").bind(id),
    c.env.DB.prepare("INSERT INTO audit_logs(id,actor_id,action,target_type,target_id,created_at) SELECT ?,?,?,?,?,? WHERE changes()=1").bind(randomId(),user.id,'user.suspend','user',id,seconds()),
    c.env.DB.prepare("DELETE FROM sessions WHERE user_id=? AND EXISTS(SELECT 1 FROM users WHERE id=? AND state='suspended')").bind(id,id)
+ ]);
+ return (result[0].meta.changes??0)===1?c.json({ok:true}):c.json({error:'NOT_ALLOWED'},409);
+});
+
+// Small community owner tools: members and published content, all server-role gated.
+mod.get('/admin/users',async c=>{
+ const user=await owner(c);if(!user)return c.json({error:'FORBIDDEN'},403);
+ const {results}=await c.env.DB.prepare("SELECT id,username,display_name AS displayName,role,state,created_at AS createdAt FROM users ORDER BY created_at DESC LIMIT 100").all();
+ return c.json({items:results});
+});
+mod.post('/admin/users/:id/unsuspend',async c=>{
+ const user=await owner(c);if(!user)return c.json({error:'FORBIDDEN'},403);
+ const id=c.req.param('id');
+ const result=await c.env.DB.batch([
+  c.env.DB.prepare("UPDATE users SET state='active' WHERE id=? AND role='member' AND state='suspended'").bind(id),
+  c.env.DB.prepare("INSERT INTO audit_logs(id,actor_id,action,target_type,target_id,created_at) SELECT ?,?,?,?,?,? WHERE changes()=1").bind(randomId(),user.id,'user.unsuspend','user',id,seconds())
+ ]);
+ return (result[0].meta.changes??0)===1?c.json({ok:true}):c.json({error:'NOT_ALLOWED'},409);
+});
+mod.get('/admin/topics',async c=>{
+ const user=await admin(c);if(!user)return c.json({error:'FORBIDDEN'},403);
+ const status=c.req.query('status')==='hidden'?'hidden':'published';
+ const {results}=await c.env.DB.prepare("SELECT t.id,t.slug,t.title,t.status,t.content,t.pinned,t.created_at AS createdAt,u.username AS author FROM topics t JOIN users u ON u.id=t.author_id WHERE t.status=? ORDER BY t.created_at DESC LIMIT 60").bind(status).all();
+ return c.json({items:results});
+});
+mod.post('/admin/topics/:id/manage',async c=>{
+ const user=await admin(c);if(!user)return c.json({error:'FORBIDDEN'},403);
+ const body=await parseBody(c,250);
+ const action=body?.action;
+ if(!['pin','unpin','hide','restore'].includes(String(action)))return c.json({error:'INVALID_INPUT'},400);
+ const id=c.req.param('id');
+ let query:string;
+ if(action==='pin')query="UPDATE topics SET pinned=1 WHERE id=? AND status='published' AND pinned=0";
+ else if(action==='unpin')query="UPDATE topics SET pinned=0 WHERE id=? AND status='published' AND pinned=1";
+ else if(action==='hide')query="UPDATE topics SET status='hidden',pinned=0,updated_at=? WHERE id=? AND status='published'";
+ else query="UPDATE topics SET status='published',updated_at=? WHERE id=? AND status='hidden'";
+ const stmt=c.env.DB.prepare(query);
+ const update=action==='hide'||action==='restore'?stmt.bind(seconds(),id):stmt.bind(id);
+ const result=await c.env.DB.batch([
+  update,
+  c.env.DB.prepare("INSERT INTO audit_logs(id,actor_id,action,target_type,target_id,created_at) SELECT ?,?,?,?,?,? WHERE changes()=1").bind(randomId(),user.id,'topic.'+action,'topic',id,seconds())
  ]);
  return (result[0].meta.changes??0)===1?c.json({ok:true}):c.json({error:'NOT_ALLOWED'},409);
 });
