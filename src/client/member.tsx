@@ -9,7 +9,7 @@ const request=async <T,>(path:string,method='GET',body?:unknown,requestKey?:stri
  if(requestKey)headers['Idempotency-Key']=requestKey;
  const response=await fetch(path,{method,headers,credentials:'same-origin',body:body===undefined?undefined:JSON.stringify(body)});
  const value=await response.json().catch(()=>({error:'NETWORK_ERROR'})) as Record<string,unknown>;
- if(!response.ok)throw new Error(value.error||('HTTP '+response.status));return value as T;
+ if(!response.ok)throw new Error(String(value.error||('HTTP '+response.status)));return value as T;
 };
 export function useMember(){const [member,setMember]=useState<Member|null>(null);const [loading,setLoading]=useState(true);useEffect(()=>{let live=true;request<{user:Member|null}>('/api/v1/me').then(d=>{if(live)setMember(d.user)}).catch(()=>{}).finally(()=>{if(live)setLoading(false)});return()=>{live=false}},[]);return {member,setMember,loading};}
 export function AuthDialog({onClose,onAuthenticated}:{onClose:()=>void;onAuthenticated:(member:Member)=>void}){
