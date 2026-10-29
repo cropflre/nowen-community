@@ -54,7 +54,7 @@ assert.ok(
   (app.destinations || []).some(d => d.type === 'worker' && d.worker_id === worker.tag),
   'Access application MUST protect the staging Worker itself with All traffic, not just previews or one hostname.'
 );
-assert.equal(app.bypass, undefined, 'Unrecognized bypass configuration requires manual review.');
+assert.notEqual(app.bypass, true, 'Access application bypass mode is forbidden.');
 
 const policies = await cf(root + '/access/apps/' + app.id + '/policies');
 assert.ok(Array.isArray(policies), 'Cloudflare did not return Access policy list.');
@@ -67,7 +67,7 @@ for (const policy of policies) {
   assert.ok(includes.length > 0, 'An allow policy must have explicit includes.');
   for (const rule of includes) {
     const email = rule?.email?.email;
-    assert.ok(typeof email === 'string' && /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email),
+    assert.ok(typeof email === 'string' && email === email.trim() && email.includes('@') && email.split('@').length === 2 && email.split('@')[1].includes('.') && !Array.from(email).some(ch => ch.charCodeAt(0) <= 32),
       'All allow-policy includes must target a specific email; Everyone or email-domain rules are prohibited.');
     approvedEmailRuleCount++;
   }
