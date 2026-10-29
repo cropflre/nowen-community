@@ -34,6 +34,9 @@ test('open registration, draft autosave and pending-only submission',async({page
  await expect(page.getByRole('dialog',{name:'我的帖子'})).toBeVisible();
  await expect(page.getByText('我的第一篇弄文社区话题')).toBeVisible();
  await page.getByRole('button',{name:'关闭'}).click();
+ await page.getByRole('button',{name:/测试创作者.*账号/}).click();
+ await expect(page.getByRole('dialog',{name:'账号设置'})).toBeVisible();
+ await page.getByRole('button',{name:'关闭'}).click();
  const me=await page.request.get('/api/v1/me/topics');
  expect(me.ok()).toBeTruthy();
  const json=await me.json();

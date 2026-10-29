@@ -26,6 +26,12 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Typecheck, unit tests and production build
         run: npm run check
+      - name: Browser integration gate before publishing
+        run: |
+          npx playwright install --with-deps chromium
+          npx wrangler d1 migrations apply nowen-community-db --local
+          printf 'LOCAL_TEST_TURNSTILE=1\nPASSWORD_PEPPER=local-only-password-pepper-for-tests-do-not-deploy-2026\n' > .dev.vars
+          npx playwright test
       - name: Check generated production Worker identity and bindings
         run: node scripts/assert-production-build.mjs
       - name: Read-only production preflight (D1 / R2 / secrets / domain)
