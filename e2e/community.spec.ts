@@ -38,3 +38,18 @@ test('admin page is denied to non-administrators',async({page})=>{
  await page.goto('/admin');
  await expect(page.getByRole('heading',{name:'无访问权限'})).toBeVisible();
 });
+
+test('Turnstile only appears when interactive verification is needed',async({page})=>{
+ await page.route('**/api/v1/security/turnstile',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({required:true,siteKey:'test-site-key'})}));
+ await page.addInitScript(()=>{
+  const w=window as unknown as {turnstile:{render:(el:HTMLElement,options:{appearance:string;callback:(token:string)=>void})=>number;remove:()=>void}};
+  w.turnstile={
+   render(el,options){el.dataset.appearance=options.appearance;queueMicrotask(()=>options.callback('mock-verified-token'));return 1;},
+   remove(){},
+  };
+ });
+ await page.goto('/');
+ await page.getByRole('button',{name:/登录 \/ 注册/}).click();
+ await expect(page.locator('.turnstile-panel [data-appearance]')).toHaveAttribute('data-appearance','interaction-only');
+ await expect(page.getByText('提交前请完成人机验证')).toHaveCount(0);
+});

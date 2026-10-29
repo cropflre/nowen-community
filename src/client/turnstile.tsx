@@ -1,5 +1,5 @@
 import React,{useEffect,useRef,useState} from 'react';
-type WidgetApi={render:(el:HTMLElement,options:{sitekey:string;callback:(token:string)=>void;'expired-callback':()=>void;'error-callback':()=>void})=>string|number;remove:(id:string|number)=>void};
+type WidgetApi={render:(el:HTMLElement,options:{sitekey:string;callback:(token:string)=>void;'expired-callback':()=>void;'error-callback':()=>void;appearance:'interaction-only'})=>string|number;remove:(id:string|number)=>void};
 declare global{interface Window{turnstile?:WidgetApi}}
 type Info={required:boolean;siteKey:string|null};
 let sdkPromise:Promise<void>|null=null;
@@ -21,12 +21,12 @@ export function TurnstileField({onToken,revision=0}:{onToken:(token:string)=>voi
  const [config,setConfig]=useState<Info|null>(null);
  const [error,setError]=useState('');
  useEffect(()=>{let live=true;fetch('/api/v1/security/turnstile').then(async r=>{if(!r.ok)throw new Error('配置加载失败');return await r.json() as Info}).then(cfg=>{if(live)setConfig(cfg)}).catch(()=>{if(live)setError('暂时无法加载人机验证')});return()=>{live=false}},[]);
- useEffect(()=>{onToken('');if(!config?.required)return;if(!config.siteKey){setError('社区尚未配置 Turnstile，暂不能提交');return}
+ useEffect(()=>{onToken('');setError('');if(!config?.required)return;if(!config.siteKey){setError('社区尚未配置 Turnstile，暂不能提交');return}
  let active=true;let widget:string|number|undefined;
- loadSdk().then(()=>{if(active&&window.turnstile&&target.current){widget=window.turnstile.render(target.current,{sitekey:config.siteKey!,callback:t=>onToken(t),'expired-callback':()=>onToken(''),'error-callback':()=>{onToken('');setError('验证失败，请刷新后重试')}})}}).catch(()=>{if(active)setError('验证码服务暂不可用')});
+ loadSdk().then(()=>{if(active&&window.turnstile&&target.current){widget=window.turnstile.render(target.current,{sitekey:config.siteKey!,appearance:'interaction-only',callback:t=>{if(active){setError('');onToken(t)}},'expired-callback':()=>{if(active)onToken('')},'error-callback':()=>{if(active){onToken('');setError('验证失败，请刷新后重试')}}})}}).catch(()=>{if(active)setError('验证码服务暂不可用')});
  return()=>{active=false;onToken('');if(widget!==undefined&&window.turnstile)window.turnstile.remove(widget)};
  },[config?.required,config?.siteKey,revision]);
+ if(config?.required)return <div className="turnstile-panel"><div ref={target}/>{error&&<p className="member-error" role="alert">{error}</p>}</div>;
  if(error)return <p className="member-error" role="alert">{error}</p>;
- if(config?.required)return <div className="turnstile-panel"><div ref={target}/><small>提交前请完成人机验证</small></div>;
- return <></>;
+ return null;
 }
