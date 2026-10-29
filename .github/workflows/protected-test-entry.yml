@@ -1,0 +1,60 @@
+name: NOWEN Community Protected Test Entry
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Read-only check, enable Access-protected temporary staging entry, or emergency disable
+        required: true
+        type: choice
+        options: [check, enable-protected-entry, disable-entry]
+        default: check
+permissions:
+  contents: read
+concurrency:
+  group: community-protected-test-entry
+  cancel-in-progress: false
+jobs:
+  check:
+    if: github.ref == 'refs/heads/main' && inputs.action == 'check'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify safe inactive staging entry and Access policy (read only)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node scripts/protected-test-entry.mjs check
+  enable:
+    if: github.ref == 'refs/heads/main' && inputs.action == 'enable-protected-entry'
+    runs-on: ubuntu-latest
+    environment: community-internal-release
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Require explicit reviewed environment unlock
+        env:
+          RELEASE_UNLOCK: ${{ secrets.COMMUNITY_RELEASE_UNLOCK }}
+        run: test "$RELEASE_UNLOCK" = "INTERNAL_UNROUTED_WORKER_ONLY"
+      - name: Verify Access, enable temporary workers.dev, prove anonymous denial
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node scripts/protected-test-entry.mjs enable
+  disable:
+    if: github.ref == 'refs/heads/main' && inputs.action == 'disable-entry'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Emergency shutdown; does not require working Access policy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node scripts/protected-test-entry.mjs disable
