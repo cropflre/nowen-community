@@ -45,6 +45,7 @@ export const topics = sqliteTable('topics', {
   slug: text('slug').notNull().unique(),
   categoryId: text('category_id').notNull().references(() => categories.id),
   authorId: text('author_id').notNull().references(() => users.id),
+  clientKey: text('client_key'),
   title: text('title').notNull(),
   content: text('content').notNull(),
   status: text('status', { enum: ['draft', 'pending', 'published', 'hidden'] }).notNull().default('pending'),
@@ -59,6 +60,7 @@ export const replies = sqliteTable('replies', {
   topicId: text('topic_id').notNull().references(() => topics.id),
   authorId: text('author_id').notNull().references(() => users.id),
   content: text('content').notNull(),
+  clientKey: text('client_key'),
   status: text('status', { enum: ['pending', 'published', 'hidden'] }).notNull().default('pending'),
   createdAt: integer('created_at').notNull().default(now),
 }, t => [index('replies_topic_idx').on(t.topicId, t.status, t.createdAt)]);
@@ -102,4 +104,10 @@ export const uploads = sqliteTable('uploads', {
   sizeBytes: integer('size_bytes').notNull(),
   state: text('state', {enum: ['pending', 'approved', 'deleted']}).notNull().default('pending'),
   createdAt: integer('created_at').notNull().default(now),
+});
+
+export const requestLimits = sqliteTable('request_limits', {
+ bucket: text('bucket').primaryKey(),
+ hits: integer('hits').notNull(),
+ expiresAt: integer('expires_at').notNull(),
 });

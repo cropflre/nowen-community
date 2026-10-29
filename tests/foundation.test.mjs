@@ -25,5 +25,6 @@ test('write APIs remain disabled in Phase 1',()=>{
 test('UI labels invite beta instead of enabling unfinished flows',()=>{
  const ui=read('src/client/main.tsx');
  assert.ok(ui.includes('邀请制内测'));
- assert.ok(ui.includes('disabled>登录 / 注册'));
+ assert.ok(ui.includes('AuthDialog'));
+ assert.ok(ui.includes('TopicEngagement'));
 });
