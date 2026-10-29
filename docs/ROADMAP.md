@@ -9,6 +9,10 @@
 
 | Phase 5（本 PR） | 独立 staging D1/R2/Turnstile、Vite staging 环境、发布前资源核验、私有 staging Worker 手动部署门禁 | 真实 D1 三项迁移完成；CI 全绿；不绑定任何公网入口；之后必须先配置 Cloudflare Access 才能开放受控测试域名 |
 
+| Phase 6（本 PR） | Cloudflare Zero Trust / Access 工作区启用核验、staging Worker 全流量访问策略、只读 GitHub 安全门禁与实际浏览器验收手册 | Access 未启用时 Fail Closed；精确邮箱允许名单；无 Bypass；绑定测试域名前须经独立验收与审批 |
+
 产品原则：参考 V2EX 的轻量分类讨论模式，原创 NOWEN UI、优先简单操作。未上线按钮必须明确禁用。
 
 阶段 5 的完整手册见 [PHASE5_STAGING.md](PHASE5_STAGING.md)。正式域名仍未公开上线。
+
+Phase 6 安全门禁和 Cloudflare Zero Trust 开通指引见 [PHASE6_ACCESS.md](PHASE6_ACCESS.md)。测试域名尚未开放。
