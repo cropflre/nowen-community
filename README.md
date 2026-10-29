@@ -12,7 +12,7 @@
 - Hono 只读 API：GET /api/health、GET /api/v1/categories、GET /api/v1/topics、GET /api/v1/topics/:slug。
 - 主题页 SEO：GET /t/:slug 服务端输出真实主题 HTML、title、description 与 canonical；未发布内容不能通过公共接口读取。
 - 独立数据库模型：用户、邀请码、会话、版块、主题、回复、收藏、点赞、举报、审计、附件。
-- 安全默认值：禁用 workers.dev，生产数据库 ID 仍是占位符，全部写接口关闭。
+- 安全默认值：禁用 workers.dev，独立 D1 已创建且完成手动 SQL 初始化，全部写接口关闭。
 - CI：类型检查、单元与 API 安全边界测试、构建。
 
 **尚未实现：** 邀请注册、登录、写入/回复/点赞、Markdown 编辑器、管理员审核、Turnstile、R2 上传、持久限流与 E2E。这些功能将在后续阶段实现，不能将基础工程宣传为论坛已上线。
@@ -33,7 +33,7 @@ npm run dev
 
 ~~~bash
 npx wrangler d1 create nowen-community-db
-# 将输出的 database_id 填入 wrangler.jsonc（检查绝不是其他 NOWEN 数据库）
+# 独立 D1 已经创建，wrangler.jsonc 已写入其真实 ID；核对后才执行下一条迁移命令
 npx wrangler d1 migrations apply nowen-community-db --remote
 ~~~
 
@@ -44,3 +44,5 @@ npx wrangler d1 migrations apply nowen-community-db --remote
 ## 开源许可
 
 尚未指定开源许可证；在正式公开发布前需确定许可证并提交 LICENSE 文件。
+
+**远端资源实际状态（2026-10-29）：** 已创建独立 nowen-community-db，应用 0001_init.sql 的 SQL 并查询确认 11 张业务表、6 条默认板块。使用 Cloudflare API 手动执行 SQL 不会登记 Wrangler 的 d1_migrations 记录；首次使用 wrangler migrations apply --remote 时会重放幂等 0001_init.sql 并登记，必须审阅运行输出。尚未部署 Worker 或绑定 community.nowen.cn。
