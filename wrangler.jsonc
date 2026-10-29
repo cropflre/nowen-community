@@ -27,5 +27,8 @@
       "binding": "MEDIA",
       "bucket_name": "nowen-community-assets"
     }
-  ]
+  ],
+  "vars": {
+    "TURNSTILE_SITE_KEY": "0x4AAAAAAFqrMaE54L6wuOLe"
+  }
 }
