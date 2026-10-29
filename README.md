@@ -71,3 +71,9 @@ Cloudflare 上已建立与正式环境完全隔离的 `nowen-community-staging-d
 
 **重要：测试站 `staging-community.nowen.cn` 尚未绑定或向公网开放。** 若需要真实浏览器验收，必须先启用 Worker 级 Cloudflare Access 并验证未授权访问被阻止；不能直接公开测试域名。
 
+
+## Phase 6 · Cloudflare Access 安全准入
+
+Staging Worker 已部署，但未绑定测试域名。Cloudflare Zero Trust 当前尚未启用；必须先在 Cloudflare 开通 Zero Trust，给 `nowen-community-staging` 配置 **All traffic**、**指定邮箱允许名单** 的 Worker 级 Access 保护（不影响其他 NOWEN Worker）。
+
+合并 Phase 6 PR 后可手动运行 `NOWEN Community Access Safety Gate` 只读预检；Access 未启用、策略不严格或 API Token 缺少读取权限将安全失败。**禁止直接开放 staging 域名**。具体步骤见 [Phase 6 Access 手册](docs/PHASE6_ACCESS.md)。
