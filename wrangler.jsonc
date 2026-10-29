@@ -12,7 +12,7 @@
   "d1_databases": [{
     "binding": "DB",
     "database_name": "nowen-community-db",
-    "database_id": "00000000-0000-4000-8000-000000000000",
+    "database_id": "a63c9450-f93f-409d-adaf-313491e2bfc8",
     "migrations_dir": "migrations"
   }]
 }
