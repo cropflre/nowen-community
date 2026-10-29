@@ -49,3 +49,18 @@
 - 后续 `staging-community.nowen.cn` 域名接入需单独审批，并以真实浏览器验收为门槛；`community.nowen.cn` 正式发布还要完成安全、合规、国内网络等专项验收。
 
 Phase 7 本阶段交付的是**访问验证与可控开关**，不意味着论坛正式上线。
+
+## Access Safety Gate 常见故障：GitHub token 看不到应用
+
+2026-10-29 实际出现过：Cloudflare 账户连接器能够看到 `NOWEN Community Staging Access`，但 GitHub Actions 使用的 `CLOUDFLARE_API_TOKEN` 调用 Access 应用列表返回空数组，进而导致 **Expected exact one staging Access application**。
+
+这不是删除或重新创建 Access 应用的理由，**也不能跳过 Access 保护检查**。
+
+修复方式：
+
+1. 打开 [Cloudflare API Tokens](https://dash.cloudflare.com/profile/api-tokens)，找到给 NOWEN Community GitHub Actions 使用的 Token。
+2. 检查 **Account → Access: Apps and Policies → Read** 权限，并确认资源范围是拥有 staging Worker 的 Cloudflare 账户。如果无法原位编辑权限，可创建权限正确的新 Token，轮换 GitHub 仓库的 `CLOUDFLARE_API_TOKEN`。
+3. 不要使用 Global API Key，不要把 Token 放进 GitHub Variables 或写进 Issue。
+4. 合并本修复之后重新运行 **NOWEN Community Access Safety Gate** 或 **NOWEN Community Protected Test Entry → check**。
+5. 脚本已改为直接按固定 Access Application ID 查询并严格验证名称、Worker Tag、全流量保护与精确邮箱规则；直接读取被拒绝会给出 Token 权限诊断并 **Fail Closed**。
+6. 成功后才能执行 `enable-protected-entry`。绝不以更新权限为由直接开启 Worker URL。
