@@ -18,7 +18,7 @@ export function AccountDialog({member,onClose,onUpdated,onLogout}:{member:Member
  }
  async function savePassword(event:React.FormEvent){
   event.preventDefault();setError('');setNotice('');
-  if(next.length<12){setError('新密码至少需要 12 位');return}
+  if(next.length<6){setError('新密码至少需要 6 位');return}
   if(next!==confirm){setError('两次输入的新密码不一致');return}
   setBusy(true);
   try{await api('/me/password',{currentPassword:current,newPassword:next});setCurrent('');setNext('');setConfirm('');setNotice('密码修改成功，其他设备已退出登录');}
@@ -28,7 +28,7 @@ export function AccountDialog({member,onClose,onUpdated,onLogout}:{member:Member
   <button className="member-close" onClick={onClose} aria-label="关闭">×</button><h2 id="account-title">账号设置</h2><p>用户名 {member.username} · 管理你的资料和密码</p>
   {notice&&<p className="account-success" role="status">{notice}</p>}{error&&<p className="member-error" role="alert">{error}</p>}
   <form onSubmit={saveName}><h3>公开资料</h3><label>社区昵称<input required minLength={2} maxLength={32} value={name} onChange={e=>setName(e.target.value)}/></label><button className="member-primary" type="submit" disabled={busy}>保存昵称</button></form>
-  <form onSubmit={savePassword}><h3>修改密码</h3><label>当前密码<input type="password" required autoComplete="current-password" value={current} onChange={e=>setCurrent(e.target.value)}/></label><label>新密码（至少 12 位）<input type="password" required minLength={12} maxLength={128} autoComplete="new-password" value={next} onChange={e=>setNext(e.target.value)}/></label><label>确认新密码<input type="password" required autoComplete="new-password" value={confirm} onChange={e=>setConfirm(e.target.value)}/></label><button className="member-primary" type="submit" disabled={busy}>修改密码</button></form>
+  <form onSubmit={savePassword}><h3>修改密码</h3><label>当前密码<input type="password" required autoComplete="current-password" value={current} onChange={e=>setCurrent(e.target.value)}/></label><label>新密码（至少 6 位）<input type="password" required minLength={6} maxLength={128} autoComplete="new-password" value={next} onChange={e=>setNext(e.target.value)}/></label><label>确认新密码<input type="password" required autoComplete="new-password" value={confirm} onChange={e=>setConfirm(e.target.value)}/></label><button className="member-primary" type="submit" disabled={busy}>修改密码</button></form>
   <button className="account-logout" onClick={onLogout}>退出登录</button>
  </section></div>;
 }

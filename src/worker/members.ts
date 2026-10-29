@@ -11,7 +11,7 @@ app.post('/auth/register',async c=>{
  const username=stringField(body,'username',24)?.trim().toLowerCase()||'';
  const displayName=oneLine(stringField(body,'displayName',36)||'');
  const password=stringField(body,'password',128)||'';
- if(!/^[a-z0-9_]{3,24}$/.test(username)||displayName.length<2||displayName.length>32||password.length<12)return c.json({error:'INVALID_INPUT'},400);
+ if(!/^[a-z0-9_]{3,24}$/.test(username)||displayName.length<2||displayName.length>32||password.length<6)return c.json({error:'INVALID_INPUT'},400);
  const pepper=c.env.PASSWORD_PEPPER;
  if(!pepper)return c.json({error:'AUTH_UNAVAILABLE'},503);
  let hash:string;
@@ -61,7 +61,7 @@ app.post('/me/password',async c=>{
  if(!await rateLimit(c,'change-password:'+user.id,5,3600))return c.json({error:'RATE_LIMITED'},429);
  const body=await parseBody(c,600);if(!body)return c.json({error:'INVALID_BODY'},400);
  const previous=stringField(body,'currentPassword',128),next=stringField(body,'newPassword',128);
- if(!previous||!next||next.length<12||next===previous)return c.json({error:'INVALID_INPUT'},400);
+ if(!previous||!next||next.length<6||next===previous)return c.json({error:'INVALID_INPUT'},400);
  const pepper=c.env.PASSWORD_PEPPER;if(!pepper)return c.json({error:'AUTH_UNAVAILABLE'},503);
  const row=await c.env.DB.prepare('SELECT password_hash AS passwordHash FROM users WHERE id=?').bind(user.id).first<{passwordHash:string}>();
  if(!row||!await verifyPassword(previous,row.passwordHash,pepper))return c.json({error:'INVALID_CREDENTIALS'},401);

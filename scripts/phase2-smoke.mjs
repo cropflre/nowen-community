@@ -15,7 +15,10 @@ async function req(path,method='GET',body,cookie,key,from=origin){
 }
 const suffix=Date.now().toString(36);
 const username='test'+suffix.slice(-12);
-const password='Test phrase for phase two 2026!';
+// A six-digit numeric password is a valid registration choice.
+const password='638472';
+const invalidShort=await req('/api/v1/auth/register','POST',{username:'short'+suffix.slice(-12),displayName:'过短密码测试',password:'63847'});
+assert.equal(invalidShort.status,400,'Registration must reject passwords shorter than 6 characters');
 const reg=await req('/api/v1/auth/register','POST',{username,displayName:'联调测试',password});
 assert.equal(reg.status,201,JSON.stringify(reg.data));
 assert.ok(reg.cookie?.includes('HttpOnly')&&reg.cookie?.includes('SameSite=Lax'));
@@ -55,15 +58,17 @@ const cookie2=login.cookie.split(';')[0];
 const profile=await req('/api/v1/me/profile','POST',{displayName:'新的社区昵称'},cookie2);
 assert.equal(profile.status,200);
 assert.equal(profile.data.user.displayName,'新的社区昵称');
-const wrongPassword=await req('/api/v1/me/password','POST',{currentPassword:'incorrect-password',newPassword:'A different secure password 2026'},cookie2);
+const shortNewPassword=await req('/api/v1/me/password','POST',{currentPassword:password,newPassword:'71439'},cookie2);
+assert.equal(shortNewPassword.status,400,'Password change must reject passwords shorter than 6 characters');
+const wrongPassword=await req('/api/v1/me/password','POST',{currentPassword:'incorrect-password',newPassword:'714395'},cookie2);
 assert.equal(wrongPassword.status,401);
-const changedPassword=await req('/api/v1/me/password','POST',{currentPassword:password,newPassword:'A different secure password 2026'},cookie2);
+const changedPassword=await req('/api/v1/me/password','POST',{currentPassword:password,newPassword:'714395'},cookie2);
 assert.equal(changedPassword.status,200);
 const oldSession=await req('/api/v1/me','GET',undefined,cookie2);
 assert.equal(oldSession.data.user,null,'Password change must revoke all old sessions');
 const oldPassword=await req('/api/v1/auth/login','POST',{username,password});
 assert.equal(oldPassword.status,401);
-const newPasswordLogin=await req('/api/v1/auth/login','POST',{username,password:'A different secure password 2026'});
+const newPasswordLogin=await req('/api/v1/auth/login','POST',{username,password:'714395'});
 assert.equal(newPasswordLogin.status,200);
 const refreshedCookie=newPasswordLogin.cookie.split(';')[0];
 sql("UPDATE topics SET status='published' WHERE id='"+post.data.item.id+"'");
