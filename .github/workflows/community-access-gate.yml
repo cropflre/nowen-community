@@ -1,0 +1,29 @@
+name: NOWEN Community Access Safety Gate
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: community-access-review
+  cancel-in-progress: false
+jobs:
+  validate-access:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - name: Check staging resources, Worker bindings and absence of public routes
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          STAGING_DEPLOYED: '1'
+        run: node scripts/staging-preflight.mjs
+      - name: Require Worker-wide Cloudflare Access with exact-email policy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node scripts/access-gate.mjs
