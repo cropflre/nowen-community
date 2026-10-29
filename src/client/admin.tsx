@@ -1,7 +1,7 @@
 import React,{useCallback,useEffect,useState} from 'react';
 import {friendlyError} from './errors';
 type ReviewType='topic'|'reply'|'reports'|'uploads'|'content'|'users';
-type Item={id:string;slug?:string;topicSlug?:string;title?:string;topicTitle?:string;content?:string;author?:string;username?:string;displayName?:string;role?:string;state?:string;status?:string;pinned?:number;createdAt:number;reason?:string;reporter?:string;type?:string;targetId?:string;targetPreview?:string;contentType?:string;sizeBytes?:number};
+type Item={id:string;slug?:string;categoryId?:string;topicSlug?:string;title?:string;topicTitle?:string;content?:string;author?:string;username?:string;displayName?:string;role?:string;state?:string;status?:string;pinned?:number;createdAt:number;reason?:string;reporter?:string;type?:string;targetId?:string;targetPreview?:string;contentType?:string;sizeBytes?:number};
 type Counts={topics:number;replies:number;reports:number;uploads:number};
 const names:Record<ReviewType,string>={topic:'待审主题',reply:'待审回复',reports:'举报处理',uploads:'图片审核',content:'帖子管理',users:'用户管理'};
 const errorText:Record<string,string>={FORBIDDEN:'当前账号无权执行此操作',NOT_PENDING:'该内容已被其他管理员处理',NOT_ALLOWED:'当前状态不允许该操作',NOT_OPEN:'举报已处理',ORIGIN_DENIED:'请求验证失败，请刷新后重试'};
@@ -10,6 +10,15 @@ async function api<T>(path:string,method='GET',body?:unknown):Promise<T>{
  const data=await r.json().catch(()=>({error:'NETWORK_ERROR'})) as {error?:string};
  if(!r.ok)throw new Error(errorText[data.error||'']||friendlyError(data.error||''));
  return data as T;
+}
+// Opens an editable GitHub Issue draft, never posts to GitHub without approval.
+function issueDraft(item:Item){
+ const repos:Record<string,string>={note:'nowen-note',reader:'nowen-reader',video:'nowen-video'};
+ const repo=repos[item.categoryId||''];
+ if(!repo||!item.slug)return null;
+ const url='https://community.nowen.cn/t/'+encodeURIComponent(item.slug);
+ const body='社区反馈原帖：'+url+'\n\n反馈内容：\n\n'+(item.content||'').slice(0,1800)+'\n\n---\n请核对复现步骤和产品版本后再提交。';
+ return 'https://github.com/cropflre/'+repo+'/issues/new?'+new URLSearchParams({title:item.title||'社区反馈',body}).toString();
 }
 export function AdminPanel(){
  const [role,setRole]=useState<string|null>(null),[active,setActive]=useState<ReviewType>('topic'),[contentStatus,setContentStatus]=useState<'published'|'hidden'>('published');
@@ -56,6 +65,7 @@ export function AdminPanel(){
    {item.targetPreview&&<pre>被举报内容：{item.targetPreview}</pre>}
    {item.topicSlug&&<a className="admin-topic-link" href={'/t/'+encodeURIComponent(item.topicSlug)} target="_blank" rel="noopener noreferrer">查看原帖</a>}
    {item.slug&&<a className="admin-topic-link" href={'/t/'+encodeURIComponent(item.slug)} target="_blank" rel="noopener noreferrer">查看原帖</a>}
+   {active==='content'&&item.status==='published'&&issueDraft(item)&&<a className="admin-topic-link" href={issueDraft(item)!} target="_blank" rel="noopener noreferrer">转为 GitHub Issue 草稿</a>}
    {active==='uploads'&&<div className="admin-media"><p>{item.contentType} · {item.sizeBytes} bytes</p><img alt="待审核上传图片" loading="lazy" src={'/api/v1/media/'+encodeURIComponent(item.id)}/></div>}
    <div className="admin-item-actions">
     {active==='reports'?<><button disabled={busy} onClick={()=>execute(item,'resolved')}>标记已处理</button><button disabled={busy} onClick={()=>execute(item,'dismissed')}>驳回举报</button></>:

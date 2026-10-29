@@ -7,7 +7,7 @@ test('dedicated Cloudflare Worker with isolated D1',()=>{
  assert.equal(c.name,'nowen-community');
  assert.equal(c.workers_dev,false);
  assert.equal(c.d1_databases[0].database_name,'nowen-community-db');
- assert.deepEqual(c.assets.run_worker_first,['/api/*','/t/*']);
+ assert.deepEqual(c.assets.run_worker_first,['/api/*','/t/*','/robots.txt','/sitemap.xml']);
  assert.equal(c.assets.binding,'ASSETS','Server-rendered topic detail needs static template binding');
 });
 test('backward-compatible database schema and feed indexes',()=>{

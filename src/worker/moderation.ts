@@ -42,7 +42,7 @@ mod.get('/admin/queue',async c=>{
  const user=await admin(c);if(!user)return c.json({error:'FORBIDDEN'},403);
  const type=c.req.query('type')==='reply'?'reply':'topic';
  const statement=type==='topic'
-  ? "SELECT t.id,t.title,t.slug,t.content,t.status,t.created_at AS createdAt,u.username AS author FROM topics t JOIN users u ON t.author_id=u.id WHERE t.status='pending' ORDER BY t.created_at ASC LIMIT 60"
+  ? "SELECT t.id,t.title,t.slug,t.category_id AS categoryId,t.content,t.status,t.created_at AS createdAt,u.username AS author FROM topics t JOIN users u ON t.author_id=u.id WHERE t.status='pending' ORDER BY t.created_at ASC LIMIT 60"
   : "SELECT r.id,r.content,r.status,r.created_at AS createdAt,u.username AS author,t.title AS topicTitle,t.slug AS topicSlug FROM replies r JOIN users u ON r.author_id=u.id JOIN topics t ON t.id=r.topic_id WHERE r.status='pending' ORDER BY r.created_at ASC LIMIT 60";
  const {results}=await c.env.DB.prepare(statement).all();
  return c.json({items:results});
@@ -118,7 +118,7 @@ mod.post('/admin/users/:id/unsuspend',async c=>{
 mod.get('/admin/topics',async c=>{
  const user=await admin(c);if(!user)return c.json({error:'FORBIDDEN'},403);
  const status=c.req.query('status')==='hidden'?'hidden':'published';
- const {results}=await c.env.DB.prepare("SELECT t.id,t.slug,t.title,t.status,t.content,t.pinned,t.created_at AS createdAt,u.username AS author FROM topics t JOIN users u ON u.id=t.author_id WHERE t.status=? ORDER BY t.created_at DESC LIMIT 60").bind(status).all();
+ const {results}=await c.env.DB.prepare("SELECT t.id,t.slug,t.category_id AS categoryId,t.title,t.status,t.content,t.pinned,t.created_at AS createdAt,u.username AS author FROM topics t JOIN users u ON u.id=t.author_id WHERE t.status=? ORDER BY t.created_at DESC LIMIT 60").bind(status).all();
  return c.json({items:results});
 });
 mod.post('/admin/topics/:id/manage',async c=>{

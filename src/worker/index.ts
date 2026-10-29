@@ -18,10 +18,19 @@ app.use('*', async (c, next) => {
   c.header('X-Content-Type-Options', 'nosniff');
   c.header('Referrer-Policy', 'strict-origin-when-cross-origin');
   c.header('X-Frame-Options', 'DENY');
-  c.header('Cache-Control', c.req.path.startsWith('/api/') ? 'no-store' : 'private, max-age=0');
+  c.header('Cache-Control', c.req.path.startsWith('/api/') ? 'no-store' : c.req.path==='/sitemap.xml' ? 'public, max-age=300' : 'private, max-age=0');
 });
 
 app.get('/api/health', c => c.json({ ok: true, service: 'nowen-community', stage: 'foundation' }));
+
+app.get('/robots.txt',c=>c.text('User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api/\nSitemap: https://community.nowen.cn/sitemap.xml\n'));
+app.get('/sitemap.xml',async c=>{
+ const db=drizzle(c.env.DB);
+ const items=await db.select({slug:topics.slug,updatedAt:topics.updatedAt}).from(topics)
+  .where(eq(topics.status,'published')).orderBy(desc(topics.updatedAt)).limit(1000);
+ const urls=items.map(item=>'<url><loc>https://community.nowen.cn/t/'+encodeURIComponent(item.slug)+'</loc><lastmod>'+new Date(item.updatedAt*1000).toISOString().slice(0,10)+'</lastmod></url>').join('');
+ return c.body('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://community.nowen.cn/</loc></url>'+urls+'</urlset>',200,{'Content-Type':'application/xml; charset=utf-8'});
+});
 
 app.get('/api/v1/categories', async c => {
   const db = drizzle(c.env.DB);

@@ -45,6 +45,13 @@ assert.equal(detailResponse.status,200,'Published topic HTML must render, not re
 assert.match(detailResponse.headers.get('content-type')||'',/text\/html/);
 assert.match(detailHtml,/<title>Phase Three moderated topic · 弄文社区<\/title>/);
 assert.ok(detailHtml.includes('This post should only appear after moderation.'),'Published topic HTML must include content');
+assert.match(detailHtml,/property="og:title"/,'Published topics should have share metadata');
+const robots=await fetch(base+'/robots.txt');
+assert.equal(robots.status,200);
+assert.match(await robots.text(),/Disallow: \/admin/);
+const sitemap=await fetch(base+'/sitemap.xml');
+assert.equal(sitemap.status,200);
+assert.ok((await sitemap.text()).includes(create.data.item.slug),'Only published topics appear in sitemap');
 const contentListing=await req('/admin/topics','GET',undefined,reviewer.cookie);
 assert.equal(contentListing.status,200);
 assert.ok(contentListing.data.items.some(x=>x.id===id));
@@ -54,6 +61,8 @@ const hidden=await req('/admin/topics/'+id+'/manage','POST',{action:'hide'},revi
 assert.equal(hidden.status,200);
 const hiddenPublic=await req('/topics/'+create.data.item.slug);
 assert.equal(hiddenPublic.status,404,'Hidden topics must be removed from public APIs');
+const hiddenSitemap=await fetch(base+'/sitemap.xml');
+assert.ok(!(await hiddenSitemap.text()).includes(create.data.item.slug),'Hidden topics must be removed from sitemap');
 const restored=await req('/admin/topics/'+id+'/manage','POST',{action:'restore'},reviewer.cookie);
 assert.equal(restored.status,200);
 const usersList=await req('/admin/users','GET',undefined,reviewer.cookie);
