@@ -27,8 +27,13 @@ test('open registration, draft autosave and pending-only submission',async({page
  await page.getByPlaceholder('用一句话描述你想讨论的事情').fill('我的第一篇弄文社区话题');
  await page.getByPlaceholder('分享你的想法，支持 Markdown 语法…').fill('这是通过 Playwright 浏览器端测试发布的 Markdown 内容。');
  await expect(page.getByRole('status')).toContainText(/草稿已保存|保存中/,{timeout:15000});
+ await expect(page.getByRole('button',{name:'加粗'})).toBeVisible();
  await page.getByRole('button',{name:'提交审核'}).click();
  await expect(page.getByText('已提交审核，审核通过后其他用户才能看到')).toBeVisible({timeout:15000});
+ await page.getByRole('button',{name:'我的帖子'}).click();
+ await expect(page.getByRole('dialog',{name:'我的帖子'})).toBeVisible();
+ await expect(page.getByText('我的第一篇弄文社区话题')).toBeVisible();
+ await page.getByRole('button',{name:'关闭'}).click();
  const me=await page.request.get('/api/v1/me/topics');
  expect(me.ok()).toBeTruthy();
  const json=await me.json();

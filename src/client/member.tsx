@@ -48,7 +48,7 @@ export function MyTopicsDialog({onClose,onEdit}:{onClose:()=>void;onEdit:(item:M
 export function ComposerDialog({member,categories,onClose,initialDraft}:{member:Member;categories:Category[];onClose:()=>void;initialDraft?:MyTopic|null}){
  const stored=initialDraft??(()=>{try{const v=localStorage.getItem(draftKey(member.id));return v?JSON.parse(v) as {id?:string;key?:string;title?:string;content?:string;categoryId?:string}:null}catch{return null}})();
  const [title,setTitle]=useState(stored?.title||''),[content,setContent]=useState(stored?.content||''),[categoryId,setCategoryId]=useState(stored?.categoryId||categories[0]?.id||''),[id,setId]=useState(stored?.id||'');
- const [key]=useState(stored?.key||crypto.randomUUID()),[saving,setSaving]=useState(false),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[preview,setPreview]=useState(false);
+ const [key]=useState((stored&&'key' in stored?stored.key:undefined)||crypto.randomUUID()),[saving,setSaving]=useState(false),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[preview,setPreview]=useState(false);
  const [token,setToken]=useState(''),[revision,setRevision]=useState(0),[uploaded,setUploaded]=useState<string[]>([]);
  const [uploading,setUploading]=useState(false);
  const textarea=useRef<HTMLTextAreaElement>(null);
