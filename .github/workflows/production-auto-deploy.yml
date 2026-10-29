@@ -1,0 +1,36 @@
+name: NOWEN Community Production Auto Deploy
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: nowen-community-production-deploy
+  cancel-in-progress: false
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_ENV: ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Typecheck, unit tests and production build
+        run: npm run check
+      - name: Check generated production Worker identity and bindings
+        run: node scripts/assert-production-build.mjs
+      - name: Read-only production preflight (D1 / R2 / secrets / domain)
+        run: node scripts/production-auto.mjs check
+      - name: Deploy production Worker without modifying databases
+        run: npx wrangler deploy
+      - name: Verify deployed Worker and connect official domain when needed
+        run: node scripts/production-auto.mjs publish
