@@ -4,6 +4,8 @@ import { drizzle } from 'drizzle-orm/d1';
 import { categories, topics, users } from '../db/schema';
 import { seoTopicHtml } from './seo';
 import memberRoutes from './members';
+import moderationRoutes from './moderation';
+import notificationRoutes from './notifications';
 
 type Bindings = {
   DB: D1Database;
@@ -82,6 +84,8 @@ app.get('/t/:slug', async c => {
 
 // Phase 2: invitation-only member workflows. Every mutation validates Origin and session.
 app.route('/api/v1',memberRoutes);
+app.route('/api/v1',moderationRoutes);
+app.route('/api/v1',notificationRoutes);
 
 // Unimplemented admin/moderation routes fail closed.
 app.all('/api/*', c => c.json({ error: 'not_found' }, 404));

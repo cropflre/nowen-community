@@ -3,6 +3,8 @@ import {createRoot} from 'react-dom/client';
 import {ArrowRight,BookOpen,ChevronRight,Coffee,Compass,Github,Heart,LifeBuoy,Menu,MessageCircle,Moon,NotebookPen,Search,ShieldCheck,Sparkles,Sun,Video,X} from 'lucide-react';
 import './styles.css';
 import {AuthDialog,ComposerDialog,TopicEngagement,useMember} from './member';
+import {AdminPanel} from './admin';
+import {NotificationTray} from './notifications';
 
 type Category={id:string;name:string;description:string;icon:string};
 type Topic={id:string;slug:string;title:string;excerpt:string;content?:string;categoryId:string;categoryName:string;authorName:string;replyCount:number;createdAt:number;pinned:boolean};
@@ -57,6 +59,7 @@ function App(){
  function select(id:string){if(slug!==null){location.href=id==='all'?'/':'/?category='+encodeURIComponent(id);return;}setCategory(id);setMenu(false);}
  const active=categories.find(c=>c.id===category);
  const rows=sort==='popular'?[...items].sort((a,b)=>b.replyCount-a.replyCount):items;
+ if(location.pathname==='/admin')return <AdminPanel/>;
  return <div className="app">
   {menu&&<button className="scrim" aria-label="关闭导航" onClick={()=>setMenu(false)}/>}
   <aside className={'sidebar '+(menu?'open':'')}>
@@ -74,7 +77,7 @@ function App(){
    <header className="topbar">
     <button className="small-icon menu-button" aria-label="打开导航" onClick={()=>setMenu(true)}><Menu/></button>
     <div className="breadcrumb">NOWEN <ChevronRight/><b>{slug!==null?'主题讨论':active?.name||'社区广场'}</b></div>
-    <div className="top-actions"><span className="beta"><i/> PRIVATE BETA</span><button className="small-icon" aria-label="切换明暗主题" onClick={()=>setTheme(t=>t==='dark'?'light':'dark')}>{theme==='dark'?<Sun/>:<Moon/>}</button><button className="login" onClick={()=>member?logout():setAuthOpen(true)}>{member?member.displayName+' · 退出':'登录 / 注册'} <ArrowRight/></button></div>
+    <div className="top-actions"><span className="beta"><i/> PRIVATE BETA</span><button className="small-icon" aria-label="切换明暗主题" onClick={()=>setTheme(t=>t==='dark'?'light':'dark')}>{theme==='dark'?<Sun/>:<Moon/>}</button>{member&&<NotificationTray/>}{(member?.role==='admin'||member?.role==='moderator')&&<a className="admin-link" href="/admin">审核中心</a>}<button className="login" onClick={()=>member?logout():setAuthOpen(true)}>{member?member.displayName+' · 退出':'登录 / 注册'} <ArrowRight/></button></div>
    </header>
    <main className="content">
     {slug===null?<>

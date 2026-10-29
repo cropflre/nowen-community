@@ -111,3 +111,10 @@ export const requestLimits = sqliteTable('request_limits', {
  hits: integer('hits').notNull(),
  expiresAt: integer('expires_at').notNull(),
 });
+
+export const notifications = sqliteTable('notifications',{
+ id:text('id').primaryKey(),userId:text('user_id').notNull().references(()=>users.id),
+ kind:text('kind',{enum:['topic_published','reply_approved']}).notNull(),
+ targetId:text('target_id').notNull(),dedupeKey:text('dedupe_key').notNull().unique(),
+ readAt:integer('read_at'),createdAt:integer('created_at').notNull().default(now),
+},t=>[index('notifications_user_idx').on(t.userId,t.readAt,t.createdAt)]);

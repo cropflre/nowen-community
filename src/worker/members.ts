@@ -1,4 +1,5 @@
 import {Hono} from 'hono';
+import {verifyTurnstile} from './turnstile';
 import {createSession,denyCrossSite,getActor,oneLine,parseBody,passwordHash,randomId,rateLimit,requireActor,revokeSession,seconds,sha256,stringField,validRequestKey,verifyPassword,type CommunityBindings} from './security';
 const app=new Hono<{Bindings:CommunityBindings}>();
 app.use('*',async(c,next)=>{if(!['GET','HEAD','OPTIONS'].includes(c.req.method)&&denyCrossSite(c))return c.json({error:'ORIGIN_DENIED'},403);await next();});
@@ -6,6 +7,7 @@ app.get('/me',async c=>{const actor=await getActor(c);return c.json({user:actor}
 app.post('/auth/register',async c=>{
  if(!await rateLimit(c,'register',5))return c.json({error:'RATE_LIMITED'},429);
  const body=await parseBody(c,3000);if(!body)return c.json({error:'INVALID_BODY'},400);
+ if(!await verifyTurnstile(c,body.turnstileToken))return c.json({error:'TURNSTILE_FAILED'},403);
  const username=stringField(body,'username',24)?.trim().toLowerCase()||'';
  const displayName=oneLine(stringField(body,'displayName',36)||'');
  const password=stringField(body,'password',128)||'';
@@ -23,6 +25,7 @@ app.post('/auth/register',async c=>{
 app.post('/auth/login',async c=>{
  if(!await rateLimit(c,'login',10))return c.json({error:'RATE_LIMITED'},429);
  const body=await parseBody(c,1400);if(!body)return c.json({error:'INVALID_BODY'},400);
+ if(!await verifyTurnstile(c,body.turnstileToken))return c.json({error:'TURNSTILE_FAILED'},403);
  const username=stringField(body,'username',24)?.trim().toLowerCase()||'';
  const password=stringField(body,'password',128)||'';
  if(!/^[a-z0-9_]{3,24}$/.test(username)||!password)return c.json({error:'INVALID_CREDENTIALS'},401);
@@ -49,10 +52,10 @@ app.put('/topics/:id',async c=>{const user=await requireActor(c);if(!user)return
  const cat=await c.env.DB.prepare('SELECT id FROM categories WHERE id=?').bind(categoryId).first();if(!cat)return c.json({error:'CATEGORY_NOT_FOUND'},400);
  const r=await c.env.DB.prepare("UPDATE topics SET title=?,content=?,category_id=?,updated_at=? WHERE id=? AND author_id=? AND status='draft'").bind(title,content,categoryId,seconds(),c.req.param('id'),user.id).run();return r.meta.changes?c.json({ok:true}):c.json({error:'NOT_EDITABLE'},404);
 });
-app.post('/topics/:id/submit',async c=>{const user=await requireActor(c);if(!user)return c.json({error:'UNAUTHORIZED'},401);const r=await c.env.DB.prepare("UPDATE topics SET status='pending',updated_at=? WHERE id=? AND author_id=? AND status='draft' AND length(trim(title)) BETWEEN 5 AND 160 AND length(trim(content)) BETWEEN 10 AND 12000").bind(seconds(),c.req.param('id'),user.id).run();return r.meta.changes?c.json({status:'pending'}):c.json({error:'NOT_SUBMITTABLE'},409);});
+app.post('/topics/:id/submit',async c=>{const user=await requireActor(c);if(!user)return c.json({error:'UNAUTHORIZED'},401);const body=await parseBody(c,2500);if(!await verifyTurnstile(c,body?.turnstileToken))return c.json({error:'TURNSTILE_FAILED'},403);const r=await c.env.DB.prepare("UPDATE topics SET status='pending',updated_at=? WHERE id=? AND author_id=? AND status='draft' AND length(trim(title)) BETWEEN 5 AND 160 AND length(trim(content)) BETWEEN 10 AND 12000").bind(seconds(),c.req.param('id'),user.id).run();return r.meta.changes?c.json({status:'pending'}):c.json({error:'NOT_SUBMITTABLE'},409);});
 app.get('/topics/:slug/replies',async c=>{const slug=c.req.param('slug');const user=await getActor(c);const topic=await c.env.DB.prepare("SELECT id FROM topics WHERE slug=? AND status='published'").bind(slug).first<{id:string}>();if(!topic)return c.json({error:'NOT_FOUND'},404);const {results}=await c.env.DB.prepare("SELECT r.id,r.content,r.status,r.created_at AS createdAt,u.display_name AS author FROM replies r JOIN users u ON u.id=r.author_id WHERE r.topic_id=? AND (r.status='published' OR (r.status='pending' AND r.author_id=?)) ORDER BY r.created_at ASC LIMIT 100").bind(topic.id,user?.id??'').all();return c.json({items:results});});
 app.post('/topics/:slug/replies',async c=>{const user=await requireActor(c);if(!user)return c.json({error:'UNAUTHORIZED'},401);if(!await rateLimit(c,'reply:'+user.id,60,3600))return c.json({error:'RATE_LIMITED'},429);
- const key=c.req.header('Idempotency-Key')||null;if(!validRequestKey(key))return c.json({error:'IDEMPOTENCY_KEY_REQUIRED'},400);const body=await parseBody(c,4200);if(!body)return c.json({error:'INVALID_BODY'},400);const content=stringField(body,'content',3000);if(!content||content.trim().length<2)return c.json({error:'INVALID_CONTENT'},400);
+ const key=c.req.header('Idempotency-Key')||null;if(!validRequestKey(key))return c.json({error:'IDEMPOTENCY_KEY_REQUIRED'},400);const body=await parseBody(c,4200);if(!body)return c.json({error:'INVALID_BODY'},400);if(!await verifyTurnstile(c,body.turnstileToken))return c.json({error:'TURNSTILE_FAILED'},403);const content=stringField(body,'content',3000);if(!content||content.trim().length<2)return c.json({error:'INVALID_CONTENT'},400);
  const topic=await c.env.DB.prepare("SELECT id FROM topics WHERE slug=? AND status='published'").bind(c.req.param('slug')).first<{id:string}>();if(!topic)return c.json({error:'NOT_FOUND'},404);
  const now=seconds();await c.env.DB.prepare("INSERT OR IGNORE INTO replies(id,topic_id,author_id,content,status,client_key,created_at) VALUES(?,?,?,?,'pending',?,?)").bind(randomId(),topic.id,user.id,content,key,now).run();
  const item=await c.env.DB.prepare('SELECT id,status FROM replies WHERE author_id=? AND client_key=?').bind(user.id,key).first();return item?c.json({item},201):c.json({error:'CREATE_FAILED'},409);
