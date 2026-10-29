@@ -3,17 +3,18 @@ test('community home, themes and responsive navigation',async({page,isMobile})=>
  await page.goto('/');
  await expect(page.getByRole('heading',{name:/好的想法/})).toBeVisible();
  await expect(page.getByText('邀请制内测中')).toBeVisible();
+ const before=await page.locator('html').getAttribute('data-theme');
  await page.getByRole('button',{name:'切换明暗主题'}).click();
- await expect(page.locator('html')).toHaveAttribute('data-theme',/dark|light/);
+ await expect(page.locator('html')).toHaveAttribute('data-theme',before==='dark'?'light':'dark');
  if(isMobile){
   await page.getByRole('button',{name:'打开导航'}).click();
   await expect(page.getByRole('navigation',{name:'社区板块'})).toBeVisible();
   await page.getByRole('button',{name:'关闭导航'}).click();
  }
 });
-test('invite registration, draft autosave and pending-only submission',async({page,browserName})=>{
- // The same browser projects share a test database. Only desktop consumes the single invitation.
- test.skip(test.info().project.name!=='chromium-desktop','Single-use local invitation is consumed by desktop test');
+test('invite registration, draft autosave and pending-only submission',async({page})=>{
+ // Browser projects each consume their own isolated invitation from the local seed.
+ const invitation=test.info().project.name==='chromium-mobile'?'phase3-admin-invite-000000000001':'phase3-member-invite-00000000001';
  await page.goto('/');
  await page.getByRole('button',{name:/登录 \/ 注册/}).click();
  await page.getByRole('button',{name:'邀请码注册'}).click();
@@ -21,7 +22,7 @@ test('invite registration, draft autosave and pending-only submission',async({pa
  await page.getByPlaceholder('英文字母、数字或下划线').fill(username);
  await page.getByPlaceholder('在社区展示的名称').fill('测试创作者');
  await page.getByPlaceholder('至少 12 位密码').fill('A long and unique test password! 2026');
- await page.getByPlaceholder('管理员提供的一次性邀请码').fill('phase3-member-invite-00000000001');
+ await page.getByPlaceholder('管理员提供的一次性邀请码').fill(invitation);
  await page.getByRole('button',{name:'创建账号'}).click();
  await expect(page.getByRole('button',{name:/测试创作者.*退出/})).toBeVisible({timeout:15000});
  await page.getByRole('button',{name:'开启一个话题'}).click();
