@@ -13,7 +13,14 @@ app.post('/auth/register',async c=>{
  const password=stringField(body,'password',128)||'';
  const invite=stringField(body,'invitation',160)||'';
  if(!/^[a-z0-9_]{3,24}$/.test(username)||displayName.length<2||displayName.length>32||password.length<12||!/^[a-zA-Z0-9_-]{24,100}$/.test(invite))return c.json({error:'INVALID_INPUT'},400);
- const hash=await passwordHash(password),codeHash=await sha256(invite),id=randomId(),now=seconds();
+ const pepper=c.env.PASSWORD_PEPPER;
+ if(!pepper)return c.json({error:'AUTH_UNAVAILABLE'},503);
+ let hash:string;
+ try{hash=await passwordHash(password,pepper);}catch(error){
+   console.error('registration_password_hash_failed',error instanceof Error?error.name:'unknown');
+   return c.json({error:'AUTH_UNAVAILABLE'},503);
+ }
+ const codeHash=await sha256(invite),id=randomId(),now=seconds();
  try{const rows=await c.env.DB.batch([
   c.env.DB.prepare("INSERT INTO users(id,username,display_name,password_hash,role,state,created_at) SELECT ?,?,?,?,'member','active',? WHERE EXISTS (SELECT 1 FROM invitations WHERE code_hash=? AND used_by IS NULL AND (expires_at IS NULL OR expires_at>?))").bind(id,username,displayName,hash,now,codeHash,now),
   c.env.DB.prepare('UPDATE invitations SET used_by=?,used_at=? WHERE code_hash=? AND used_by IS NULL AND (expires_at IS NULL OR expires_at>?) AND EXISTS(SELECT 1 FROM users WHERE id=?)').bind(id,now,codeHash,now,id)
@@ -30,7 +37,15 @@ app.post('/auth/login',async c=>{
  const password=stringField(body,'password',128)||'';
  if(!/^[a-z0-9_]{3,24}$/.test(username)||!password)return c.json({error:'INVALID_CREDENTIALS'},401);
  const user=await c.env.DB.prepare("SELECT id,username,display_name AS displayName,password_hash AS passwordHash,role FROM users WHERE username=? AND state='active'").bind(username).first<{id:string;username:string;displayName:string;passwordHash:string;role:string}>();
- if(!user||!await verifyPassword(password,user.passwordHash))return c.json({error:'INVALID_CREDENTIALS'},401);
+ if(!user)return c.json({error:'INVALID_CREDENTIALS'},401);
+ const pepper=c.env.PASSWORD_PEPPER;
+ if(!pepper)return c.json({error:'AUTH_UNAVAILABLE'},503);
+ let valid=false;
+ try{valid=await verifyPassword(password,user.passwordHash,pepper);}catch(error){
+   console.error('login_password_verify_failed',error instanceof Error?error.name:'unknown');
+   return c.json({error:'AUTH_UNAVAILABLE'},503);
+ }
+ if(!valid)return c.json({error:'INVALID_CREDENTIALS'},401);
  await createSession(c,user.id);return c.json({user:{id:user.id,username:user.username,displayName:user.displayName,role:user.role}});
 });
 app.post('/auth/logout',async c=>{await revokeSession(c);return c.json({ok:true});});

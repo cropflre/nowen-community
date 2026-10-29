@@ -32,7 +32,7 @@ jobs:
           node scripts/phase3-smoke.mjs --seed
       - name: Live Worker + D1 API integration smoke
         run: |
-          printf 'LOCAL_TEST_TURNSTILE=1\n' > .dev.vars
+          printf 'LOCAL_TEST_TURNSTILE=1\nPASSWORD_PEPPER=local-only-password-pepper-for-tests-do-not-deploy-2026\n' > .dev.vars
           npm run dev -- --host 127.0.0.1 > /tmp/nowen-community-dev.log 2>&1 &
           pid=$!
           trap 'kill "$pid" 2>/dev/null || true' EXIT

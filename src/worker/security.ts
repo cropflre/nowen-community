@@ -1,5 +1,6 @@
 import type { Context } from 'hono';
-export type CommunityBindings={DB:D1Database;ASSETS:Fetcher;MEDIA:R2Bucket;TURNSTILE_SECRET_KEY?:string;TURNSTILE_SITE_KEY?:string;LOCAL_TEST_TURNSTILE?:string};
+export { passwordHash, verifyPassword } from './passwords';
+export type CommunityBindings={DB:D1Database;ASSETS:Fetcher;MEDIA:R2Bucket;TURNSTILE_SECRET_KEY?:string;PASSWORD_PEPPER?:string;TURNSTILE_SITE_KEY?:string;LOCAL_TEST_TURNSTILE?:string};
 type C=Context<{Bindings:CommunityBindings}>;
 export type Actor={id:string;username:string;displayName:string;role:'member'|'moderator'|'admin'};
 const sessionCookie='nowen_community_session';
@@ -9,8 +10,6 @@ const hex=(buffer:ArrayBuffer)=>Array.from(new Uint8Array(buffer),b=>b.toString(
 export async function sha256(value:string){return hex(await crypto.subtle.digest('SHA-256',encoder.encode(value)));}
 const randomHex=(bytes=32)=>Array.from(crypto.getRandomValues(new Uint8Array(bytes)),b=>b.toString(16).padStart(2,'0')).join('');
 export function randomId(){return crypto.randomUUID();}
-export async function passwordHash(password:string){const salt=randomHex(16);const rounds=600000;const key=await crypto.subtle.importKey('raw',encoder.encode(password),'PBKDF2',false,['deriveBits']);const bits=await crypto.subtle.deriveBits({name:'PBKDF2',salt:Uint8Array.from(salt.match(/../g)!,b=>parseInt(b,16)),iterations:rounds,hash:'SHA-256'},key,256);return ['pbkdf2-sha256',rounds,salt,hex(bits)].join(':');}
-export async function verifyPassword(password:string,stored:string){const parts=stored.split(':');if(parts.length!==4||parts[0]!=='pbkdf2-sha256')return false;const rounds=Number(parts[1]);if(!Number.isInteger(rounds)||rounds<600000||rounds>1200000||!/^[0-9a-f]{32}$/.test(parts[2])||!/^[0-9a-f]{64}$/.test(parts[3]))return false;const key=await crypto.subtle.importKey('raw',encoder.encode(password),'PBKDF2',false,['deriveBits']);const calculated=hex(await crypto.subtle.deriveBits({name:'PBKDF2',salt:Uint8Array.from(parts[2].match(/../g)!,b=>parseInt(b,16)),iterations:rounds,hash:'SHA-256'},key,256));let mismatch=0;for(let i=0;i<64;i++)mismatch|=calculated.charCodeAt(i)^parts[3].charCodeAt(i);return mismatch===0;}
 export function denyCrossSite(c:C){const origin=c.req.header('Origin');const expected=new URL(c.req.url).origin;if(origin!==expected)return true;const site=c.req.header('Sec-Fetch-Site');return Boolean(site&&site!=='same-origin'&&site!=='none');}
 export async function parseBody(c:C,maxBytes=16000):Promise<Record<string,unknown>|null>{if(!c.req.header('Content-Type')?.toLowerCase().startsWith('application/json'))return null;const len=Number(c.req.header('Content-Length')||'0');if(len>maxBytes)return null;try{const raw=await c.req.text();if(encoder.encode(raw).byteLength>maxBytes)return null;const value:unknown=JSON.parse(raw);return value!==null&&typeof value==='object'&&!Array.isArray(value)?value as Record<string,unknown>:null;}catch{return null;}}
 export const stringField=(obj:Record<string,unknown>,field:string,max:number)=>typeof obj[field]==='string'&&obj[field].length<=max?obj[field] as string:null;

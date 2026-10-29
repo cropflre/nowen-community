@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 test('security: high-cost salted password storage, hashed sessions, HttpOnly cookie',()=>{
- const s=read('src/worker/security.ts');assert.match(s,/rounds=600000/);assert.match(s,/PBKDF2/);assert.match(s,/sha256\(token\)/);assert.match(s,/HttpOnly/);assert.match(s,/SameSite=Lax/);assert.match(s,/denyCrossSite/);
+ const s=read('src/worker/security.ts');assert.match(read('src/worker/passwords.ts'),/PASSWORD_ROUNDS = 100_000/);assert.match(read('src/worker/passwords.ts'),/PBKDF2/);assert.match(read('src/worker/passwords.ts'),/HMAC/);assert.match(s,/PASSWORD_PEPPER/);assert.match(s,/sha256\(token\)/);assert.match(s,/HttpOnly/);assert.match(s,/SameSite=Lax/);assert.match(s,/denyCrossSite/);
 });
 test('invite and write APIs are gated and review only',()=>{
  const s=read('src/worker/members.ts');assert.match(s,/rateLimit\(c,'register'/);assert.match(s,/c.env.DB.batch/);assert.match(s,/WHERE EXISTS/);assert.match(s,/used_by IS NULL/);assert.match(s,/status='pending'/);assert.match(s,/requestKey|Idempotency-Key/);
