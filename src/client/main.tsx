@@ -15,7 +15,7 @@ type Feed={items:Topic[];nextPage:number|null};
 const preset:Category[]=[
 {id:'note',name:'弄文笔记',description:'写作、同步与插件',icon:'note'},
 {id:'reader',name:'弄文阅读',description:'私人书库与阅读',icon:'reader'},
-{id:'video',name:'弄文视频',description:'媒体库与字幕',icon:'video'},
+{id:'video',name:'弄文影视',description:'媒体库与字幕',icon:'video'},
 {id:'showcase',name:'作品展示',description:'分享你的创作',icon:'showcase'},
 {id:'help',name:'问题求助',description:'一起找到答案',icon:'help'},
 {id:'chat',name:'茶话会',description:'技术与生活',icon:'chat'}];

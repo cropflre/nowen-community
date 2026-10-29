@@ -17,6 +17,14 @@ test('open registration, draft autosave and pending-only submission',async({page
  await page.getByRole('button',{name:/登录 \/ 注册/}).click();
  await page.getByRole('button',{name:'免费注册'}).click();
  const username='e2e'+Date.now().toString(36).slice(-10);
+ // Exercise the actual Worker API with a 5-digit password without consuming an
+ // extra register request in the shared Phase 2 + 3 smoke rate-limit bucket.
+ const tooShort=await page.request.post('/api/v1/auth/register',{
+  headers:{Origin:'http://127.0.0.1:5173'},
+  data:{username:'short'+username,displayName:'不足六位',password:'63847'}
+ });
+ expect(tooShort.status()).toBe(400);
+ expect((await tooShort.json()).error).toBe('INVALID_INPUT');
  await page.getByPlaceholder('英文字母、数字或下划线').fill(username);
  await page.getByPlaceholder('在社区展示的名称').fill('测试创作者');
  await page.getByPlaceholder('至少 6 位密码').fill('638472');
