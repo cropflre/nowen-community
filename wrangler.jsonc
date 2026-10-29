@@ -3,16 +3,29 @@
   "name": "nowen-community",
   "main": "./src/worker/index.ts",
   "compatibility_date": "2026-10-29",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "workers_dev": false,
   "assets": {
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*", "/t/*"]
+    "run_worker_first": [
+      "/api/*",
+      "/t/*"
+    ]
   },
-  "d1_databases": [{
-    "binding": "DB",
-    "database_name": "nowen-community-db",
-    "database_id": "a63c9450-f93f-409d-adaf-313491e2bfc8",
-    "migrations_dir": "migrations"
-  }]
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "nowen-community-db",
+      "database_id": "a63c9450-f93f-409d-adaf-313491e2bfc8",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "MEDIA",
+      "bucket_name": "nowen-community-assets"
+    }
+  ]
 }

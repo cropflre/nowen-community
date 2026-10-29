@@ -1,0 +1,89 @@
+import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
+import {execFileSync} from 'node:child_process';
+const base=process.env.SMOKE_BASE??'http://127.0.0.1:5173';
+const hashes=['phase3-admin-invite-000000000001','phase3-member-invite-00000000001'];
+const tokenHash=s=>createHash('sha256').update(s).digest('hex');
+function sql(statement){return execFileSync('npx',['wrangler','d1','execute','nowen-community-db','--local','--command',statement],{encoding:'utf8',timeout:60000})}
+if(process.argv.includes('--seed')){
+ for(let i=0;i<hashes.length;i++)sql("INSERT OR IGNORE INTO invitations(id,code_hash,expires_at) VALUES('phase3-invite-"+i+"','"+tokenHash(hashes[i])+"',4102444800)");
+ console.log('Seeded phase3 LOCAL-only invitations');process.exit(0);
+}
+const origin=new URL(base).origin;
+async function req(path,method='GET',data,auth,extra={}){
+ const response=await fetch(base+'/api/v1'+path,{method,headers:{Origin:origin,...(data===undefined?{}:{'Content-Type':'application/json'}),...(auth?{Cookie:auth}:{}),...extra},body:data===undefined?undefined:JSON.stringify(data)});
+ return {status:response.status,data:await response.json().catch(()=>({})),cookie:response.headers.get('set-cookie')};
+}
+const unique=Date.now().toString(36);
+async function register(role,code){
+ const username='p3'+role+unique.slice(-9);
+ const registered=await req('/auth/register','POST',{username,displayName:role+' reviewer',password:'long strong test password for phase three',invitation:code});
+ assert.equal(registered.status,201,JSON.stringify(registered.data));
+ return {id:registered.data.user.id,username,cookie:registered.cookie.split(';')[0]};
+}
+const reviewer=await register('admin',hashes[0]);
+sql("UPDATE users SET role='admin' WHERE id='"+reviewer.id+"'");
+const member=await register('user',hashes[1]);
+const category='note';
+const create=await req('/topics','POST',{categoryId:category,title:'Phase Three moderated topic',content:'This post should only appear after moderation.'},member.cookie,{'Idempotency-Key':'phase3-create-topic-0123456789'});
+assert.equal(create.status,201,JSON.stringify(create.data));
+const id=create.data.item.id;
+const submit=await req('/topics/'+id+'/submit','POST',undefined,member.cookie);
+assert.equal(submit.status,200);
+const publicBefore=await req('/topics/'+create.data.item.slug);
+assert.equal(publicBefore.status,404,'Pending post must not leak');
+const queueUnauth=await req('/admin/queue?type=topic');
+assert.equal(queueUnauth.status,403);
+const queueMember=await req('/admin/queue?type=topic','GET',undefined,member.cookie);
+assert.equal(queueMember.status,403);
+const queue=await req('/admin/queue?type=topic','GET',undefined,reviewer.cookie);
+assert.equal(queue.status,200);assert.ok(queue.data.items.some(x=>x.id===id));
+const approve=await req('/admin/review','POST',{type:'topic',id,action:'approve'},reviewer.cookie);
+assert.equal(approve.status,200,JSON.stringify(approve.data));
+const replay=await req('/admin/review','POST',{type:'topic',id,action:'approve'},reviewer.cookie);
+assert.equal(replay.status,409,'Moderation action must be one-shot');
+const visible=await req('/topics/'+create.data.item.slug);
+assert.equal(visible.status,200);
+const reply=await req('/topics/'+create.data.item.slug+'/replies','POST',{content:'Pending reply for review.'},member.cookie,{'Idempotency-Key':'phase3-reply-unique-001'});
+assert.equal(reply.status,201);
+const replyQueue=await req('/admin/queue?type=reply','GET',undefined,reviewer.cookie);
+assert.equal(replyQueue.status,200);
+const replyId=replyQueue.data.items.find(x=>x.content==='Pending reply for review.')?.id;
+assert.ok(replyId);
+const approveReply=await req('/admin/review','POST',{type:'reply',id:replyId,action:'approve'},reviewer.cookie);
+assert.equal(approveReply.status,200);
+const publicReplies=await req('/topics/'+create.data.item.slug+'/replies');
+assert.ok(publicReplies.data.items.some(x=>x.id===replyId&&x.status==='published'));
+const report=await req('/reports','POST',{type:'topic',targetId:id,reason:'Inappropriate material for test review'},member.cookie);
+assert.equal(report.status,201,JSON.stringify(report.data));
+const reports=await req('/admin/reports','GET',undefined,reviewer.cookie);
+assert.ok(reports.data.items.some(x=>x.id===report.data.id));
+const resolved=await req('/admin/reports/'+report.data.id+'/resolve','POST',{outcome:'dismissed'},reviewer.cookie);
+assert.equal(resolved.status,200);
+const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/S/wAAAAASUVORK5CYII=','base64');
+async function upload(data,contentType){
+ const response=await fetch(base+'/api/v1/uploads',{method:'POST',headers:{Origin:origin,'Content-Type':contentType,'Content-Length':String(data.byteLength),Cookie:member.cookie},body:data});
+ return {status:response.status,data:await response.json().catch(()=>({}))};
+}
+const bad=await upload(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"></svg>'),'image/png');
+assert.equal(bad.status,415,'Magic bytes must reject SVG disguised as PNG');
+const good=await upload(png,'image/png');
+assert.equal(good.status,201,JSON.stringify(good.data));
+const unauthImage=await fetch(base+'/api/v1/media/'+good.data.id);
+assert.equal(unauthImage.status,404,'Pending images are private');
+const adminImage=await fetch(base+'/api/v1/media/'+good.data.id,{headers:{Cookie:reviewer.cookie}});
+assert.equal(adminImage.status,200);
+const approveImage=await req('/admin/uploads/'+good.data.id+'/review','POST',{action:'approve'},reviewer.cookie);
+assert.equal(approveImage.status,200);
+const publicImage=await fetch(base+'/api/v1/media/'+good.data.id);
+assert.equal(publicImage.status,200);
+assert.equal(publicImage.headers.get('x-content-type-options'),'nosniff');
+const suspendUnauth=await req('/admin/users/'+member.id+'/suspend','POST',undefined,member.cookie);
+assert.equal(suspendUnauth.status,403);
+const suspend=await req('/admin/users/'+member.id+'/suspend','POST',undefined,reviewer.cookie);
+assert.equal(suspend.status,200);
+const afterSuspend=await req('/me','GET',undefined,member.cookie);
+assert.equal(afterSuspend.data.user,null,'Suspension revokes access');
+const overview=await req('/admin/overview','GET',undefined,reviewer.cookie);
+assert.equal(overview.status,200);
+console.log('Phase3 live integration passed: moderation, review queue, report, R2 magic bytes, private media, access control, suspension, audit');
