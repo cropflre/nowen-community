@@ -1,0 +1,32 @@
+name: Community Browser E2E
+on:
+  push:
+    branches: [main, "feat/**", "fix/**"]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - run: npx wrangler d1 migrations apply nowen-community-db --local
+      - run: node scripts/phase3-smoke.mjs --seed
+      - name: Enable local-only Turnstile test flag
+        run: printf 'LOCAL_TEST_TURNSTILE=1\n' > .dev.vars
+      - run: npx playwright test
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: community-playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

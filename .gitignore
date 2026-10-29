@@ -11,3 +11,6 @@ dist/
 coverage/
 playwright-report/
 test-results/
+
+community-backup*.sql
+*.d1-backup.sql

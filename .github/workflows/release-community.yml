@@ -1,0 +1,71 @@
+name: NOWEN Community Manual Release
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Choose read-only preflight or internal deployment
+        required: true
+        type: choice
+        options: [preflight, deploy-inert-worker]
+        default: preflight
+permissions:
+  contents: read
+concurrency:
+  group: community-release
+  cancel-in-progress: false
+jobs:
+  verify:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: npm run check
+      - name: Read-only remote prerequisites
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node scripts/release-preflight.mjs
+  deploy:
+    needs: verify
+    if: inputs.action == 'deploy-inert-worker'
+    environment: community-internal-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - name: Require explicit manual environment unlock
+        env:
+          RELEASE_UNLOCK: ${{ secrets.COMMUNITY_RELEASE_UNLOCK }}
+          SITE_KEY: ${{ secrets.COMMUNITY_TURNSTILE_SITE_KEY }}
+          SECRET_KEY: ${{ secrets.COMMUNITY_TURNSTILE_SECRET_KEY }}
+        run: |
+          test "$RELEASE_UNLOCK" = "INTERNAL_UNROUTED_WORKER_ONLY"
+          test -n "$SITE_KEY"
+          test -n "$SECRET_KEY"
+      - run: npm run build
+      - name: Publish un-routed Worker only
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy
+      - name: Set Turnstile configuration
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          TS_SITE: ${{ secrets.COMMUNITY_TURNSTILE_SITE_KEY }}
+          TS_SECRET: ${{ secrets.COMMUNITY_TURNSTILE_SECRET_KEY }}
+        run: |
+          printf '%s' "$TS_SITE" | npx wrangler secret put TURNSTILE_SITE_KEY
+          printf '%s' "$TS_SECRET" | npx wrangler secret put TURNSTILE_SECRET_KEY
+      - name: Confirm no public route
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node scripts/release-preflight.mjs
