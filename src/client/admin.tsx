@@ -1,4 +1,5 @@
 import React,{useCallback,useEffect,useState} from 'react';
+import {friendlyError} from './errors';
 type ReviewType='topic'|'reply'|'reports'|'uploads'|'content'|'users';
 type Item={id:string;slug?:string;topicSlug?:string;title?:string;topicTitle?:string;content?:string;author?:string;username?:string;displayName?:string;role?:string;state?:string;status?:string;pinned?:number;createdAt:number;reason?:string;reporter?:string;type?:string;targetId?:string;targetPreview?:string;contentType?:string;sizeBytes?:number};
 type Counts={topics:number;replies:number;reports:number;uploads:number};
@@ -7,7 +8,7 @@ const errorText:Record<string,string>={FORBIDDEN:'当前账号无权执行此操
 async function api<T>(path:string,method='GET',body?:unknown):Promise<T>{
  const r=await fetch('/api/v1'+path,{method,credentials:'same-origin',headers:{Accept:'application/json',...(body===undefined?{}:{'Content-Type':'application/json'})},body:body===undefined?undefined:JSON.stringify(body)});
  const data=await r.json().catch(()=>({error:'NETWORK_ERROR'})) as {error?:string};
- if(!r.ok)throw new Error(errorText[data.error||'']||data.error||'请求失败，请重试');
+ if(!r.ok)throw new Error(errorText[data.error||'']||friendlyError(data.error||''));
  return data as T;
 }
 export function AdminPanel(){

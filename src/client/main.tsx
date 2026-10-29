@@ -7,6 +7,7 @@ import remarkGfm from 'remark-gfm';
 import {AuthDialog,ComposerDialog,MyTopicsDialog,TopicEngagement,useMember,type MyTopic} from './member';
 import {AdminPanel} from './admin';
 import {NotificationTray} from './notifications';
+import {AccountDialog} from './account';
 
 type Category={id:string;name:string;description:string;icon:string};
 type Topic={id:string;slug:string;title:string;excerpt:string;content?:string;categoryId:string;categoryName:string;authorName:string;replyCount:number;createdAt:number;pinned:boolean};
@@ -26,6 +27,7 @@ function App(){
  const [authOpen,setAuthOpen]=useState(false);
  const [composeOpen,setComposeOpen]=useState(false);
   const [myOpen,setMyOpen]=useState(false);
+  const [accountOpen,setAccountOpen]=useState(false);
   const [editing,setEditing]=useState<MyTopic|null>(null);
  async function logout(){try{await fetch('/api/v1/auth/logout',{method:'POST',credentials:'same-origin'});setMember(null);}catch{alert('退出失败，请重试');}}
  const [theme,setTheme]=useState(()=>localStorage.getItem('nowen-community-theme')==='dark'?'dark':'light');
@@ -48,21 +50,21 @@ function App(){
  useEffect(()=>{
   if(slug!==null)return;
   let live=true;setLoading(true);setError('');
-  const p=new URLSearchParams({page:'1'});if(category!=='all')p.set('category',category);if(query)p.set('q',query);
+  const p=new URLSearchParams({page:'1',sort});if(category!=='all')p.set('category',category);if(query)p.set('q',query);
   api<Feed>('/api/v1/topics?'+p).then(d=>{if(live){setItems(d.items);setNext(d.nextPage);}}).catch(e=>{if(live)setError(String(e.message));}).finally(()=>{if(live)setLoading(false);});
   return ()=>{live=false;};
- },[category,query,slug]);
+ },[category,query,slug,sort]);
  useEffect(()=>{
   if(slug===null)return;let live=true;setDetailLoading(true);setError('');
   api<{item:Topic}>('/api/v1/topics/'+encodeURIComponent(slug)).then(d=>{if(live)setDetail(d.item);}).catch(e=>{if(live)setError(String(e.message));}).finally(()=>{if(live)setDetailLoading(false);});
   return ()=>{live=false;};
  },[slug]);
  async function more(){
-  if(!next||loading)return;setLoading(true);try{const p=new URLSearchParams({page:String(next)});if(category!=='all')p.set('category',category);if(query)p.set('q',query);const d=await api<Feed>('/api/v1/topics?'+p);setItems(s=>[...s,...d.items]);setNext(d.nextPage);}catch(e){setError(String(e));}finally{setLoading(false);}
+  if(!next||loading)return;setLoading(true);try{const p=new URLSearchParams({page:String(next),sort});if(category!=='all')p.set('category',category);if(query)p.set('q',query);const d=await api<Feed>('/api/v1/topics?'+p);setItems(s=>[...s,...d.items]);setNext(d.nextPage);}catch(e){setError(String(e));}finally{setLoading(false);}
  }
  function select(id:string){if(slug!==null){location.href=id==='all'?'/':'/?category='+encodeURIComponent(id);return;}setCategory(id);setMenu(false);}
  const active=categories.find(c=>c.id===category);
- const rows=sort==='popular'?[...items].sort((a,b)=>b.replyCount-a.replyCount):items;
+ const rows=items; // sorted and paginated consistently by the server
  if(location.pathname==='/admin')return <AdminPanel/>;
  return <div className="app">
   {menu&&<button className="scrim" aria-label="关闭导航" onClick={()=>setMenu(false)}/>}
@@ -81,7 +83,7 @@ function App(){
    <header className="topbar">
     <button className="small-icon menu-button" aria-label="打开导航" onClick={()=>setMenu(true)}><Menu/></button>
     <div className="breadcrumb">NOWEN <ChevronRight/><b>{slug!==null?'主题讨论':active?.name||'社区广场'}</b></div>
-    <div className="top-actions"><span className="beta"><i/> PRIVATE BETA</span><button className="small-icon" aria-label="切换明暗主题" onClick={()=>setTheme(t=>t==='dark'?'light':'dark')}>{theme==='dark'?<Sun/>:<Moon/>}</button>{member&&<NotificationTray/>}{member&&<button className="account-shortcut" onClick={()=>setMyOpen(true)}>我的帖子</button>}{(member?.role==='admin'||member?.role==='moderator')&&<a className="admin-link" href="/admin">审核中心</a>}<button className="login" onClick={()=>member?logout():setAuthOpen(true)}>{member?member.displayName+' · 退出':'登录 / 注册'} <ArrowRight/></button></div>
+    <div className="top-actions"><span className="beta"><i/> PRIVATE BETA</span><button className="small-icon" aria-label="切换明暗主题" onClick={()=>setTheme(t=>t==='dark'?'light':'dark')}>{theme==='dark'?<Sun/>:<Moon/>}</button>{member&&<NotificationTray/>}{member&&<button className="account-shortcut" onClick={()=>setMyOpen(true)}>我的帖子</button>}{(member?.role==='admin'||member?.role==='moderator')&&<a className="admin-link" href="/admin">审核中心</a>}<button className="login" onClick={()=>member?setAccountOpen(true):setAuthOpen(true)}>{member?member.displayName+' · 账号':'登录 / 注册'} <ArrowRight/></button></div>
    </header>
    <main className="content">
     {slug===null?<>
@@ -103,6 +105,7 @@ function App(){
    </main>
   </div>
   {authOpen&&<AuthDialog onClose={()=>setAuthOpen(false)} onAuthenticated={setMember}/>}
+   {accountOpen&&member&&<AccountDialog member={member} onClose={()=>setAccountOpen(false)} onUpdated={setMember} onLogout={()=>{setAccountOpen(false);logout()}}/>}
   {myOpen&&member&&<MyTopicsDialog onClose={()=>setMyOpen(false)} onEdit={item=>{setEditing(item);setMyOpen(false);setComposeOpen(true)}}/>}
    {composeOpen&&member&&<ComposerDialog member={member} categories={categories} initialDraft={editing} onClose={()=>{setComposeOpen(false);setEditing(null)}}/>}
  </div>;

@@ -61,3 +61,26 @@
 .admin-topic-link{color:var(--accent);display:inline-block;margin:5px 0 15px;font-size:12px;text-decoration:underline}
 .admin-meta{font-size:12px;color:var(--muted);display:block;margin-top:8px}
 .admin-notice{color:#2c8c54;font-size:13px}
+
+.account-dialog form{border-top:1px solid var(--line);padding:14px 0;margin-top:16px}
+.account-dialog h3{font-size:15px;margin:4px 0}
+.account-dialog form .member-primary{margin-top:8px}
+.account-logout{display:block;width:100%;border:1px solid var(--line);background:var(--soft);color:var(--nav);padding:12px;border-radius:10px;margin-top:15px}
+.account-success{color:#2c8c54;font-size:13px}
+.feedback-templates{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.feedback-templates small{flex:1 0 100%;font-size:11px;color:var(--muted)}
+.feedback-templates button{background:var(--soft);border:1px solid var(--line);border-radius:8px;color:var(--nav);padding:8px 12px;font-size:12px}
+.feedback-templates button:hover{color:var(--accent)}
+.notice-heading>div{display:flex;gap:10px;align-items:center}
+.notice-all-read{font-size:11px;color:var(--accent);white-space:nowrap}
+@media(max-width:760px){
+ .hero{min-height:215px;border-radius:16px}
+ .hero-copy{width:100%;padding:26px 23px}
+ .hero h1{font-size:29px;margin:12px 0 8px}
+ .hero p{font-size:11px;line-height:1.6}
+ .hero-art{width:52%;right:-24%;opacity:.13}
+ .hero-actions{margin-top:15px}
+ .hero-actions button{padding:10px 12px}
+ .content{padding-top:16px}
+ .columns{margin-top:22px}
+}

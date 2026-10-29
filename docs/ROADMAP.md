@@ -1,15 +1,26 @@
-# NOWEN Community 分阶段交付
+# NOWEN Community 当前路线图（2026-10-29）
 
-| 阶段 | 交付内容 | 验收条件 |
-| --- | --- | --- |
-| Phase 1 | Hono/Workers、D1、UI、只读 API、SEO | 类型检查、测试、构建通过 |
-| Phase 2 | 邀请制会员、主题、回复、收藏点赞 | 认证、会话和幂等安全 |
-| Phase 3 | 审核、举报、R2 私有附件、通知 | 审核状态与越权测试 |
-| Phase 4 | Playwright + 手动发布工程 | CI/E2E 及隔离检查 |
-| Phase 5 | 独立 staging D1/R2/Turnstile 与 Worker | 远端资源隔离、无公开入口 |
-| Phase 6 | Zero Trust Access Worker All traffic | 精确邮箱允许、无 Bypass |
-| Phase 7 | 临时受保护 workers.dev 匿名拒绝验证 | 2026-10-29 已验收并关闭入口 |
-| Phase 8（本 PR） | staging 自定义域名审批、匿名拦截、失败回滚、人工功能验收手册 | 门禁 CI 通过后手动运行；授权登录/Turnstile/业务验收未完成 |
+## 已完成
 
-坚持邀请制、低心智负担的 NOWEN UI；正式域名 `community.nowen.cn` 不在 Phase 8 范围。
-详见 [Phase 8](PHASE8_STAGING_DOMAIN.md)。
+- Hono + Workers + D1 + R2 实际生产部署和主分支自动 CI/CD
+- 开放注册、会话安全、Turnstile、持久限流
+- Markdown/GFM 内容展示、图片附件、远端草稿、内容先审、回复/点赞/收藏
+- 个人草稿与审核状态管理、管理员审核与用户管理、通知跳转
+- 全站回复数排序、产品 Bug / 功能建议模板、移动端简化布局
+- 生产与测试独立数据库；自动部署不执行数据库迁移
+
+## 后续 P1
+
+- 图片引用审批与孤儿附件垃圾回收、内容审核上下文和用户申诉
+- 基于验证渠道的安全找回密码，不提供无认证管理员重置
+- 社区个人主页及头像、更多内容管理筛选
+- 深度移动端（Android/iOS）实际设备使用测试
+
+## 后续 P2
+
+- GitHub Issue 双向关联、产品版本结构化选择与官方公告
+- sitemap / robots / OG、SEO 预览和关键词高亮、标题搜索索引
+- 备份恢复演练、运营合规、费用告警
+- 开源许可证与多语言
+
+主分支合并自动正式发布，若出现风险以立即停止自动部署和回滚当前 Worker 版本为准。旧分阶段 staging 文档为历史记录，不代表当前发布方式。
