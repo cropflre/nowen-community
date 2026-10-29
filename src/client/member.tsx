@@ -1,9 +1,10 @@
-import React,{useEffect,useState} from 'react';
+import React,{useEffect,useRef,useState} from 'react';
 import ReactMarkdown from 'react-markdown';
 import {TurnstileField} from './turnstile';
 import remarkGfm from 'remark-gfm';
 type Member={id:string;username:string;displayName:string;role:string};
 type Category={id:string;name:string};
+export type MyTopic={id:string;slug:string;title:string;content:string;categoryId:string;status:'draft'|'pending'|'published'|'hidden';updatedAt:number};
 const request=async <T,>(path:string,method='GET',body?:unknown,requestKey?:string):Promise<T>=>{
  const headers:Record<string,string>={Accept:'application/json'};
  if(body!==undefined)headers['Content-Type']='application/json';
@@ -28,17 +29,70 @@ export function AuthDialog({onClose,onAuthenticated}:{onClose:()=>void;onAuthent
  </form></section></div>
 }
 const draftKey=(id:string)=>'nowen-community-draft:'+id;
-export function ComposerDialog({member,categories,onClose}:{member:Member;categories:Category[];onClose:()=>void}){
- const stored=(()=>{try{const v=localStorage.getItem(draftKey(member.id));return v?JSON.parse(v) as {id?:string;key?:string;title?:string;content?:string;categoryId?:string}:null}catch{return null}})();
+const statusText:Record<MyTopic['status'],string>={draft:'草稿',pending:'等待审核',published:'已发布',hidden:'未通过审核'};
+export function MyTopicsDialog({onClose,onEdit}:{onClose:()=>void;onEdit:(item:MyTopic)=>void}){
+ const [items,setItems]=useState<MyTopic[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState('');
+ const load=async()=>{setLoading(true);try{const data=await request<{items:MyTopic[]}>('/api/v1/me/topics');setItems(data.items);setError('')}catch(e){setError(e instanceof Error?e.message:'加载失败')}finally{setLoading(false)}};
+ useEffect(()=>{load().catch(()=>{})},[]);
+ async function remove(item:MyTopic){
+  if(!window.confirm('确定删除这篇草稿吗？删除后无法恢复。'))return;
+  try{await request('/api/v1/me/topics/'+encodeURIComponent(item.id),'DELETE');setItems(rows=>rows.filter(x=>x.id!==item.id));}catch(e){setError(e instanceof Error?e.message:'删除失败')}
+ }
+ return <div className="modal-backdrop" role="presentation"><section className="member-dialog my-topics" role="dialog" aria-modal="true" aria-labelledby="my-topics-heading"><button className="member-close" aria-label="关闭" onClick={onClose}>×</button>
+  <h2 id="my-topics-heading">我的帖子</h2><p>集中查看草稿、审核进度及已发布内容。</p>
+  {error&&<p className="member-error" role="alert">{error}</p>}
+  {loading?<p className="member-note">正在读取帖子…</p>:items.length===0?<p className="member-note">还没有帖子。可以从首页开启一个话题。</p>:
+   <div className="my-topic-list">{items.map(item=><article className="my-topic" key={item.id}><div><strong>{item.title||'未命名草稿'}</strong><small>{statusText[item.status]} · {new Date(item.updatedAt*1000).toLocaleString('zh-CN')}</small></div><div className="my-topic-actions">{item.status==='draft'?<><button onClick={()=>onEdit(item)}>继续编辑</button><button className="danger-text" onClick={()=>remove(item)}>删除草稿</button></>:item.status==='published'?<a href={'/t/'+encodeURIComponent(item.slug)}>查看帖子</a>:<small>{item.status==='pending'?'通过审核后公开展示':'该内容未公开，如需协助请联系管理员'}</small>}</div></article>)}</div>}
+ </section></div>
+}
+export function ComposerDialog({member,categories,onClose,initialDraft}:{member:Member;categories:Category[];onClose:()=>void;initialDraft?:MyTopic|null}){
+ const stored=initialDraft??(()=>{try{const v=localStorage.getItem(draftKey(member.id));return v?JSON.parse(v) as {id?:string;key?:string;title?:string;content?:string;categoryId?:string}:null}catch{return null}})();
  const [title,setTitle]=useState(stored?.title||''),[content,setContent]=useState(stored?.content||''),[categoryId,setCategoryId]=useState(stored?.categoryId||categories[0]?.id||''),[id,setId]=useState(stored?.id||'');
  const [key]=useState(stored?.key||crypto.randomUUID()),[saving,setSaving]=useState(false),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[preview,setPreview]=useState(false);
  const [token,setToken]=useState(''),[revision,setRevision]=useState(0),[uploaded,setUploaded]=useState<string[]>([]);
- useEffect(()=>{localStorage.setItem(draftKey(member.id),JSON.stringify({id,key,title,content,categoryId}))},[member.id,id,key,title,content,categoryId]);
- async function persist(){if(!categoryId)return '';setSaving(true);try{if(!id){const result=await request<{item:{id:string}}>('/api/v1/topics','POST',{title,content,categoryId},key);setId(result.item.id);return result.item.id;}await request('/api/v1/topics/'+encodeURIComponent(id),'PUT',{title,content,categoryId});return id;}finally{setSaving(false)}}
- useEffect(()=>{if(!categoryId)return;const timer=setTimeout(()=>{persist().then(()=>setMessage('草稿已保存')).catch(()=>setMessage('自动保存失败，请检查网络'))},900);return()=>clearTimeout(timer);},[title,content,categoryId,id]);
- async function submit(){if(title.trim().length<5||content.trim().length<10){setMessage('标题至少 5 字，正文至少 10 字');return;}setBusy(true);try{const current=await persist();if(!current)return;await request('/api/v1/topics/'+encodeURIComponent(current),'PUT',{title,content,categoryId});await request('/api/v1/topics/'+encodeURIComponent(current)+'/submit','POST',{turnstileToken:token});localStorage.removeItem(draftKey(member.id));setMessage('已提交审核，审核通过后其他用户才能看到');setTimeout(onClose,1300);}catch(e){setMessage(e instanceof Error?e.message:'提交失败');setRevision(x=>x+1)}finally{setBusy(false)}}
- async function uploadImage(file:File){setMessage('图片上传中…');try{const result=await fetch('/api/v1/uploads',{method:'POST',credentials:'same-origin',headers:{'Content-Type':file.type,'X-Turnstile-Token':token},body:file});const data=await result.json() as {id?:string;error?:string};if(!result.ok||!data.id)throw new Error(data.error||'上传失败');setUploaded(old=>[...old,data.id!]);setMessage('图片已上传等待审核；审核通过后才能用于公开帖子');}catch(e){setMessage(e instanceof Error?e.message:'上传失败')}finally{setRevision(x=>x+1)}}
- return <div className="modal-backdrop" role="presentation"><section role="dialog" aria-modal="true" aria-labelledby="compose-title" className="member-dialog composer"><button className="member-close" onClick={onClose} aria-label="关闭">×</button><h2 id="compose-title">发布新话题</h2><p>支持 Markdown，草稿自动保存；提交后先进入审核。</p><label>社区板块<select value={categoryId} onChange={e=>setCategoryId(e.target.value)}>{categories.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label><label>标题<input maxLength={160} value={title} onChange={e=>setTitle(e.target.value)} placeholder="用一句话描述你想讨论的事情"/></label><label>正文<textarea rows={9} maxLength={12000} value={content} onChange={e=>setContent(e.target.value)} placeholder="分享你的想法，支持 Markdown 语法…"/></label><label className="upload-field">图片上传（2MB 内，审核后可使用）<input type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>{const file=e.target.files?.[0];if(file)uploadImage(file);e.target.value=''}}/></label>{uploaded.length>0&&<small>待审核图片：{uploaded.length} 张（暂不自动插入正文）</small>}<div className="compose-preview"><button onClick={()=>setPreview(!preview)}>{preview?'返回编辑':'预览 Markdown'}</button>{preview&&<div className="markdown-body"><ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown></div>}</div><TurnstileField revision={revision} onToken={setToken}/><div className="composer-bottom"><small role="status">{saving?'保存中…':message||'草稿将在停止输入后自动保存'}</small><button className="member-primary" onClick={submit} disabled={busy||saving}>{busy?'提交中…':'提交审核'}</button></div></section></div>
+ const [uploading,setUploading]=useState(false);
+ const textarea=useRef<HTMLTextAreaElement>(null);
+ const serverId=useRef(stored?.id||'');
+ const queue=useRef<Promise<string>>(Promise.resolve(serverId.current));
+ const completed=useRef(false);
+ useEffect(()=>{if(!completed.current)localStorage.setItem(draftKey(member.id),JSON.stringify({id,key,title,content,categoryId}))},[member.id,id,key,title,content,categoryId]);
+ // Serialize all writes: a slow autosave cannot overwrite a newer submit or edit.
+ function persist(){
+  const snapshot={title,content,categoryId};
+  if(!snapshot.categoryId)return Promise.resolve('');
+  setSaving(true);
+  const next=queue.current.catch(()=>serverId.current).then(async()=>{
+   if(!serverId.current){
+    const result=await request<{item:{id:string}}>('/api/v1/topics','POST',snapshot,key);
+    serverId.current=result.item.id;setId(result.item.id);
+   }else await request('/api/v1/topics/'+encodeURIComponent(serverId.current),'PUT',snapshot);
+   return serverId.current;
+  });
+  queue.current=next;
+  return next.finally(()=>{if(queue.current===next)setSaving(false)});
+ }
+ useEffect(()=>{if(!categoryId||completed.current)return;const timer=setTimeout(()=>{persist().then(()=>setMessage('草稿已保存')).catch(()=>setMessage('自动保存失败，请检查网络'))},900);return()=>clearTimeout(timer);},[title,content,categoryId,id]);
+ function insertMarkdown(before:string,after=''){
+  const el=textarea.current,start=el?.selectionStart??content.length,end=el?.selectionEnd??content.length;
+  const selection=content.slice(start,end);
+  setContent(value=>value.slice(0,start)+before+selection+after+value.slice(end));
+  requestAnimationFrame(()=>{el?.focus();el?.setSelectionRange(start+before.length,start+before.length+selection.length)});
+ }
+ async function submit(){if(title.trim().length<5||content.trim().length<10){setMessage('标题至少 5 字，正文至少 10 字');return;}setBusy(true);try{const current=await persist();if(!current)return;await request('/api/v1/topics/'+encodeURIComponent(current)+'/submit','POST',{turnstileToken:token});completed.current=true;localStorage.removeItem(draftKey(member.id));setMessage('已提交审核，审核通过后其他用户才能看到');setTimeout(onClose,1300);}catch(e){setMessage(e instanceof Error?e.message:'提交失败');setRevision(x=>x+1)}finally{setBusy(false)}}
+ async function uploadImage(file:File){
+  setUploading(true);setMessage('图片上传中…');
+  try{
+   if(file.size>2*1024*1024)throw new Error('图片不能超过 2 MB');
+   const result=await fetch('/api/v1/uploads',{method:'POST',credentials:'same-origin',headers:{'Content-Type':file.type,'X-Turnstile-Token':token},body:file});
+   const data=await result.json() as {id?:string;error?:string};
+   if(!result.ok||!data.id)throw new Error(data.error||'上传失败');
+   const img='![图片](/api/v1/media/'+encodeURIComponent(data.id)+')';
+   setContent(old=>old+(old.endsWith('\n')||old.length===0?'\n':'\n\n')+img+'\n');
+   setUploaded(old=>[...old,data.id!]);
+   setMessage('图片已插入正文；图片审核通过后其他用户才能查看');
+  }catch(e){setMessage(e instanceof Error?e.message:'上传失败')}finally{setUploading(false);setRevision(x=>x+1)}
+ }
+ return <div className="modal-backdrop" role="presentation"><section role="dialog" aria-modal="true" aria-labelledby="compose-title" className="member-dialog composer"><button className="member-close" onClick={onClose} aria-label="关闭">×</button><h2 id="compose-title">发布新话题</h2><p>支持 Markdown，草稿自动保存；提交后先进入审核。</p><label>社区板块<select value={categoryId} onChange={e=>setCategoryId(e.target.value)}>{categories.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label><label>标题<input maxLength={160} value={title} onChange={e=>setTitle(e.target.value)} placeholder="用一句话描述你想讨论的事情"/></label><label>正文<div className="editor-toolbar" aria-label="Markdown 工具栏"><button type="button" onClick={()=>insertMarkdown('**','**')}>加粗</button><button type="button" onClick={()=>insertMarkdown('*','*')}>斜体</button><button type="button" onClick={()=>insertMarkdown('- ')}>列表</button><button type="button" onClick={()=>insertMarkdown('[文字](',')')}>链接</button></div><textarea ref={textarea} rows={9} maxLength={12000} value={content} onChange={e=>setContent(e.target.value)} placeholder="分享你的想法，支持 Markdown 语法…"/></label><label className="upload-field">图片上传（2MB 内，自动插入正文）<input type="file" disabled={uploading} accept="image/png,image/jpeg,image/webp" onChange={e=>{const file=e.target.files?.[0];if(file)uploadImage(file);e.target.value=''}}/></label>{uploaded.length>0&&<small>本次插入 {uploaded.length} 张图片，图片审核通过后其他用户才能查看</small>}<div className="compose-preview"><button onClick={()=>setPreview(!preview)}>{preview?'返回编辑':'预览 Markdown'}</button>{preview&&<div className="markdown-body"><ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown></div>}</div><TurnstileField revision={revision} onToken={setToken}/><div className="composer-bottom"><small role="status">{saving?'保存中…':message||'草稿将在停止输入后自动保存'}</small><button className="member-primary" onClick={submit} disabled={busy||saving}>{busy?'提交中…':'提交审核'}</button></div></section></div>
 }
 export function TopicEngagement({id,slug,member,onLogin}:{id:string;slug:string;member:Member|null;onLogin:()=>void}){
  const [replies,setReplies]=useState<{id:string;content:string;status:string;author:string;createdAt:number}[]>([]);

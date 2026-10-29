@@ -2,7 +2,9 @@ import React, {useEffect,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {ArrowRight,BookOpen,ChevronRight,Coffee,Compass,Github,Heart,LifeBuoy,Menu,MessageCircle,Moon,NotebookPen,Search,ShieldCheck,Sparkles,Sun,Video,X} from 'lucide-react';
 import './styles.css';
-import {AuthDialog,ComposerDialog,TopicEngagement,useMember} from './member';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import {AuthDialog,ComposerDialog,MyTopicsDialog,TopicEngagement,useMember,type MyTopic} from './member';
 import {AdminPanel} from './admin';
 import {NotificationTray} from './notifications';
 
@@ -23,6 +25,8 @@ function App(){
  const {member,setMember}=useMember();
  const [authOpen,setAuthOpen]=useState(false);
  const [composeOpen,setComposeOpen]=useState(false);
+  const [myOpen,setMyOpen]=useState(false);
+  const [editing,setEditing]=useState<MyTopic|null>(null);
  async function logout(){try{await fetch('/api/v1/auth/logout',{method:'POST',credentials:'same-origin'});setMember(null);}catch{alert('退出失败，请重试');}}
  const [theme,setTheme]=useState(()=>localStorage.getItem('nowen-community-theme')==='dark'?'dark':'light');
  const [menu,setMenu]=useState(false);
@@ -77,11 +81,11 @@ function App(){
    <header className="topbar">
     <button className="small-icon menu-button" aria-label="打开导航" onClick={()=>setMenu(true)}><Menu/></button>
     <div className="breadcrumb">NOWEN <ChevronRight/><b>{slug!==null?'主题讨论':active?.name||'社区广场'}</b></div>
-    <div className="top-actions"><span className="beta"><i/> PRIVATE BETA</span><button className="small-icon" aria-label="切换明暗主题" onClick={()=>setTheme(t=>t==='dark'?'light':'dark')}>{theme==='dark'?<Sun/>:<Moon/>}</button>{member&&<NotificationTray/>}{(member?.role==='admin'||member?.role==='moderator')&&<a className="admin-link" href="/admin">审核中心</a>}<button className="login" onClick={()=>member?logout():setAuthOpen(true)}>{member?member.displayName+' · 退出':'登录 / 注册'} <ArrowRight/></button></div>
+    <div className="top-actions"><span className="beta"><i/> PRIVATE BETA</span><button className="small-icon" aria-label="切换明暗主题" onClick={()=>setTheme(t=>t==='dark'?'light':'dark')}>{theme==='dark'?<Sun/>:<Moon/>}</button>{member&&<NotificationTray/>}{member&&<button className="account-shortcut" onClick={()=>setMyOpen(true)}>我的帖子</button>}{(member?.role==='admin'||member?.role==='moderator')&&<a className="admin-link" href="/admin">审核中心</a>}<button className="login" onClick={()=>member?logout():setAuthOpen(true)}>{member?member.displayName+' · 退出':'登录 / 注册'} <ArrowRight/></button></div>
    </header>
    <main className="content">
     {slug===null?<>
-     <section className="hero"><div className="hero-copy"><div className="eyebrow">WELCOME TO NOWEN COMMUNITY</div><h1>好的想法，<br/><em>从交流开始。</em></h1><p>与热爱创造的人一起分享经验、探索开源、解决问题。这里是弄文产品与创作者的共同空间。</p><div className="hero-actions"><button onClick={()=>member?setComposeOpen(true):setAuthOpen(true)}>开启一个话题 <ArrowRight/></button><a href="https://github.com/cropflre/nowen-note" target="_blank" rel="noopener noreferrer">了解 NOWEN <ArrowRight/></a></div></div><div className="hero-art" aria-hidden="true"><span className="orbit one"/><span className="orbit two"/><span className="orbit three"/><b>N</b></div></section>
+     <section className="hero"><div className="hero-copy"><div className="eyebrow">WELCOME TO NOWEN COMMUNITY</div><h1>好的想法，<br/><em>从交流开始。</em></h1><p>与热爱创造的人一起分享经验、探索开源、解决问题。这里是弄文产品与创作者的共同空间。</p><div className="hero-actions"><button onClick={()=>{setEditing(null);member?setComposeOpen(true):setAuthOpen(true)}}>开启一个话题 <ArrowRight/></button><a href="https://github.com/cropflre/nowen-note" target="_blank" rel="noopener noreferrer">了解 NOWEN <ArrowRight/></a></div></div><div className="hero-art" aria-hidden="true"><span className="orbit one"/><span className="orbit two"/><span className="orbit three"/><b>N</b></div></section>
      <div className="columns"><section className="primary">
        <div className="section-heading"><small>THE DISCUSSIONS</small><h2>{active?.name||'最新讨论'} <span>/ COMMUNITY</span></h2></div>
        <div className="panel"><div className="filters"><div className="tabs"><button className={sort==='latest'?'selected':''} onClick={()=>setSort('latest')}>最新发布</button><button className={sort==='popular'?'selected':''} onClick={()=>setSort('popular')}>回复最多</button></div><label className="search"><Search/><input aria-label="搜索社区讨论" value={input} onChange={e=>setInput(e.target.value)} placeholder="搜索社区讨论..."/>{input&&<button aria-label="清空搜索" onClick={()=>setInput('')}><X/></button>}</label></div>
@@ -93,13 +97,14 @@ function App(){
       </section><aside className="rail"><section className="rail-card"><h3><Sparkles/> 关于社区</h3><p>一群热爱开源、知识和创造的人，共同构建更自由的数字生活。</p><small>OPEN SOURCE. OPEN IDEAS.</small></section><section className="rail-card"><h3><Compass/> 探索板块</h3>{categories.slice(0,5).map(c=><button className="rail-category" key={c.id} onClick={()=>select(c.id)}>{glyphs[c.id]}<span>{c.name}</span><ChevronRight/></button>)}</section><div className="footnote">用代码连接想法，以开放赋予自由。<br/>Built with Cloudflare & open source.</div></aside></div>
     </>:<>
       <a className="back" href="/">← 返回社区广场</a>
-      <article className="detail">{detailLoading?<div className="spinner"/>:error?<><h2>主题暂不可用</h2><p>{error}</p></>:detail?<><small>{detail.categoryName} · {new Date(detail.createdAt*1000).toLocaleDateString('zh-CN')}</small><h1>{detail.title}</h1><div className="author">由 {detail.authorName} 分享 · {detail.replyCount} 条回复</div><div className="article-body">{detail.content}</div><TopicEngagement id={detail.id} slug={detail.slug} member={member} onLogin={()=>setAuthOpen(true)}/></>:<h2>主题不存在</h2>}</article>
+      <article className="detail">{detailLoading?<div className="spinner"/>:error?<><h2>主题暂不可用</h2><p>{error}</p></>:detail?<><small>{detail.categoryName} · {new Date(detail.createdAt*1000).toLocaleDateString('zh-CN')}</small><h1>{detail.title}</h1><div className="author">由 {detail.authorName} 分享 · {detail.replyCount} 条回复</div><div className="markdown-body article-body"><ReactMarkdown remarkPlugins={[remarkGfm]}>{detail.content}</ReactMarkdown></div><TopicEngagement id={detail.id} slug={detail.slug} member={member} onLogin={()=>setAuthOpen(true)}/></>:<h2>主题不存在</h2>}</article>
     </>}
     <footer>© 2026 NOWEN COMMUNITY · 为创造者而建 <span>开放 · 自由 · 连接</span></footer>
    </main>
   </div>
   {authOpen&&<AuthDialog onClose={()=>setAuthOpen(false)} onAuthenticated={setMember}/>}
-  {composeOpen&&member&&<ComposerDialog member={member} categories={categories} onClose={()=>setComposeOpen(false)}/>}
+  {myOpen&&member&&<MyTopicsDialog onClose={()=>setMyOpen(false)} onEdit={item=>{setEditing(item);setMyOpen(false);setComposeOpen(true)}}/>}
+   {composeOpen&&member&&<ComposerDialog member={member} categories={categories} initialDraft={editing} onClose={()=>{setComposeOpen(false);setEditing(null)}}/>}
  </div>;
 }
 createRoot(document.getElementById('root')!).render(<React.StrictMode><App/></React.StrictMode>);
