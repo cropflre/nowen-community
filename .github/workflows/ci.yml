@@ -20,9 +20,13 @@ jobs:
       - run: npm test
       - run: npm run build
       - name: Initialize isolated local D1
-        run: npx wrangler d1 migrations apply nowen-community-db --local
+        run: |
+          npx wrangler d1 migrations apply nowen-community-db --local
+          node scripts/phase2-smoke.mjs --seed
+          node scripts/phase3-smoke.mjs --seed
       - name: Live Worker + D1 API integration smoke
         run: |
+          printf 'LOCAL_TEST_TURNSTILE=1\n' > .dev.vars
           npm run dev -- --host 127.0.0.1 > /tmp/nowen-community-dev.log 2>&1 &
           pid=$!
           trap 'kill "$pid" 2>/dev/null || true' EXIT
@@ -45,6 +49,8 @@ jobs:
             assert.notEqual(denied.status,200);
             console.log("Live Hono + D1 API smoke passed");
           '
+          node scripts/phase2-smoke.mjs
+          node scripts/phase3-smoke.mjs
       - name: Protect existing NOWEN services
         run: |
           grep -q '"workers_dev": false' wrangler.jsonc

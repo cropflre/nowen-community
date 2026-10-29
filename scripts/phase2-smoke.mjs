@@ -1,0 +1,66 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
+import {execFileSync} from 'node:child_process';
+const base=process.env.SMOKE_BASE??'http://127.0.0.1:5173';
+const token='local-testing-invitation-token-000000001';
+const hash=createHash('sha256').update(token).digest('hex');
+const origin=new URL(base).origin;
+function sql(query){return execFileSync('npx',['wrangler','d1','execute','nowen-community-db','--local','--command',query],{encoding:'utf8',timeout:60000});}
+if(process.argv.includes('--seed')){
+ sql("INSERT OR IGNORE INTO invitations(id,code_hash,expires_at) VALUES('phase2-integration-invite','"+hash+"',4102444800)");
+ console.log('Seeded isolated LOCAL D1 invitation');
+ process.exit(0);
+}
+async function req(path,method='GET',body,cookie,key,from=origin){
+ const h={Origin:from,Accept:'application/json'};
+ if(body!==undefined)h['Content-Type']='application/json';
+ if(cookie)h.Cookie=cookie;
+ if(key)h['Idempotency-Key']=key;
+ const res=await fetch(base+path,{method,headers:h,body:body===undefined?undefined:JSON.stringify(body)});
+ let data=await res.json().catch(()=>({}));
+ return {status:res.status,data,cookie:res.headers.get('set-cookie')};
+}
+const suffix=Date.now().toString(36);
+const username='test'+suffix.slice(-12);
+const password='Test phrase for phase two 2026!';
+const reg=await req('/api/v1/auth/register','POST',{username,displayName:'联调测试',password,invitation:token});
+assert.equal(reg.status,201,JSON.stringify(reg.data));
+assert.ok(reg.cookie?.includes('HttpOnly')&&reg.cookie?.includes('SameSite=Lax'));
+const cookie=reg.cookie.split(';')[0];
+const dup=await req('/api/v1/auth/register','POST',{username:username+'a',displayName:'测试二号',password,invitation:token});
+assert.equal(dup.status,400,'Invitation code must be consumed atomically');
+const me=await req('/api/v1/me','GET',undefined,cookie);
+assert.equal(me.data.user.username,username);
+const forged=await req('/api/v1/topics','POST',{title:'cross-site',content:'x',categoryId:'note'},cookie,'request-key-cross-001','https://bad.example');
+assert.equal(forged.status,403,'CSRF Origin check');
+const key='phase2-topic-idempotency-123456';
+const post=await req('/api/v1/topics','POST',{title:'Phase 2 safe sample topic',content:'This is a long enough integration test post.',categoryId:'note'},cookie,key);
+assert.equal(post.status,201,JSON.stringify(post.data));
+assert.equal(post.data.item.status,'draft');
+const again=await req('/api/v1/topics','POST',{title:'Phase 2 safe sample topic',content:'This is a long enough integration test post.',categoryId:'note'},cookie,key);
+assert.equal(again.data.item.id,post.data.item.id,'duplicate request must not produce a second topic');
+const other=await req('/api/v1/topics/'+post.data.item.id,'PUT',{title:'Cannot update',content:'Cannot update this topic',categoryId:'note'},undefined);
+assert.equal(other.status,401);
+const submitted=await req('/api/v1/topics/'+post.data.item.id+'/submit','POST',undefined,cookie);
+assert.equal(submitted.status,200);assert.equal(submitted.data.status,'pending');
+const publicTopic=await req('/api/v1/topics/'+post.data.item.slug);
+assert.equal(publicTopic.status,404,'Pending topics must be hidden');
+const mine=await req('/api/v1/me/topics','GET',undefined,cookie);
+assert.equal(mine.data.items[0].status,'pending');
+const logout=await req('/api/v1/auth/logout','POST',undefined,cookie);assert.equal(logout.status,200);
+const gone=await req('/api/v1/me','GET',undefined,cookie);assert.equal(gone.data.user,null);
+const login=await req('/api/v1/auth/login','POST',{username,password});assert.equal(login.status,200);
+const cookie2=login.cookie.split(';')[0];
+sql("UPDATE topics SET status='published' WHERE id='"+post.data.item.id+"'");
+const like=await req('/api/v1/topics/'+post.data.item.id+'/like','POST',undefined,cookie2);
+assert.equal(like.status,200);
+const bm=await req('/api/v1/topics/'+post.data.item.id+'/bookmark','POST',undefined,cookie2);
+assert.equal(bm.status,200);
+const reply=await req('/api/v1/topics/'+post.data.item.slug+'/replies','POST',{content:'A reviewable integration reply.'},cookie2,'phase2-reply-idempotency-key-001');
+assert.equal(reply.status,201);
+const replies=await req('/api/v1/topics/'+post.data.item.slug+'/replies','GET',undefined,cookie2);
+assert.equal(replies.data.items[0].status,'pending');
+const withoutAuth=await req('/api/v1/topics/'+post.data.item.slug+'/replies');
+assert.equal(withoutAuth.data.items.length,0,'Pending reply must be hidden from visitors');
+console.log('Phase 2 live D1 + auth + CSRF + invitations + drafts + replies + likes + bookmarks smoke passed');

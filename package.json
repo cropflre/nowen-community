@@ -3,7 +3,9 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -13,14 +15,17 @@
     "check": "npm run typecheck && npm test && npm run build",
     "db:local": "wrangler d1 migrations apply nowen-community-db --local",
     "db:remote": "wrangler d1 migrations apply nowen-community-db --remote",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "drizzle-orm": "^0.44.0",
     "hono": "^4.9.0",
     "lucide-react": "^0.468.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.0.0",
@@ -34,6 +39,7 @@
     "tailwindcss": "^4.1.0",
     "typescript": "^5.9.0",
     "vite": "^7.1.0",
-    "wrangler": "^4.45.0"
+    "wrangler": "^4.45.0",
+    "@playwright/test": "^1.56.0"
   }
 }
