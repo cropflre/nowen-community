@@ -22,7 +22,7 @@ test('integration tests verify numeric six-character password and reject five ch
  const smoke=read('scripts/phase2-smoke.mjs');
  const e2e=read('e2e/community.spec.ts');
  assert.match(smoke,/const password='638472'/);
- assert.match(smoke,/Registration must reject passwords shorter than 6 characters/);
+ assert.match(e2e,/tooShort.status\(\)\)\.toBe\(400\)/);
  assert.match(smoke,/Password change must reject passwords shorter than 6 characters/);
  assert.match(e2e,/getByPlaceholder\('至少 6 位密码'\)\.fill\('638472'\)/);
 });

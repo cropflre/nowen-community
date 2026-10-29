@@ -2,7 +2,7 @@
 
 **正式地址：[community.nowen.cn](https://community.nowen.cn)**
 
-围绕 Nowen Note、Nowen Reader、Nowen Video 的开源产品交流、问题求助与作品展示社区。免费开放注册，内容审核后公开。
+围绕 Nowen Note、Nowen Reader、Nowen Video（弄文影视） 的开源产品交流、问题求助与作品展示社区。免费开放注册，内容审核后公开。
 
 ## 当前功能（2026-10-29）
 
