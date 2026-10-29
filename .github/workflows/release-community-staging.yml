@@ -1,0 +1,79 @@
+name: NOWEN Community Staging Release
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Run staging preflight or deploy an unrouted staging Worker
+        required: true
+        type: choice
+        options: [preflight, deploy-staging-inert-worker]
+        default: preflight
+permissions:
+  contents: read
+concurrency:
+  group: community-staging-release
+  cancel-in-progress: false
+jobs:
+  verify:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: npm run check
+      - name: Validate generated staging Worker build
+        env:
+          CLOUDFLARE_ENV: staging
+        run: |
+          npm run build
+          node scripts/assert-staging-build.mjs
+      - name: Verify private Cloudflare staging resources (read-only)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node scripts/staging-preflight.mjs
+  deploy:
+    needs: verify
+    if: inputs.action == 'deploy-staging-inert-worker'
+    environment: community-internal-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - name: Require staging-specific Turnstile and deployment approval
+        env:
+          RELEASE_UNLOCK: ${{ secrets.COMMUNITY_RELEASE_UNLOCK }}
+          STAGING_SECRET: ${{ secrets.COMMUNITY_STAGING_TURNSTILE_SECRET_KEY }}
+        run: |
+          test "$RELEASE_UNLOCK" = "INTERNAL_UNROUTED_WORKER_ONLY"
+          test -n "$STAGING_SECRET"
+      - name: Build and validate the isolated staging Worker
+        env:
+          CLOUDFLARE_ENV: staging
+        run: |
+          npm run build
+          node scripts/assert-staging-build.mjs
+      - name: Deploy unrouted staging Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy
+      - name: Set staging-only Turnstile secret
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          TS_SECRET: ${{ secrets.COMMUNITY_STAGING_TURNSTILE_SECRET_KEY }}
+        run: |
+          printf '%s' "$TS_SECRET" | npx wrangler secret put TURNSTILE_SECRET_KEY --name nowen-community-staging
+      - name: Verify staging bindings and no public ingress
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          STAGING_DEPLOYED: '1'
+        run: node scripts/staging-preflight.mjs

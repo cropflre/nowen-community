@@ -62,3 +62,12 @@ npx wrangler d1 migrations list nowen-community-db --remote
 ## Turnstile 配置
 
 独立组件 `nowen-community` 已创建，公开 Site Key 已写入 Wrangler 配置。Secret Key 必须由管理员在受保护的 GitHub Environment 中设置，具体见 [Turnstile 配置指南](docs/TURNSTILE.md)。当前不公开论坛。
+
+## Phase 5 · 独立预发布（Staging）
+
+Cloudflare 上已建立与正式环境完全隔离的 `nowen-community-staging-db`、私有 `nowen-community-staging-assets` 和 `nowen-community-staging` Turnstile Widget。测试 D1 已应用三份迁移，保留六个社区版块。
+
+详细配置、GitHub 手动预检、`CLOUDFLARE_ENV=staging` 构建、受保护 Worker 部署以及后续 Cloudflare Access 准入要求，见 [Phase 5 Staging 手册](docs/PHASE5_STAGING.md)。
+
+**重要：测试站 `staging-community.nowen.cn` 尚未绑定或向公网开放。** 若需要真实浏览器验收，必须先启用 Worker 级 Cloudflare Access 并验证未授权访问被阻止；不能直接公开测试域名。
+
