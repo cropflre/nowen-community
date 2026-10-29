@@ -19,6 +19,12 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - name: Verify isolated staging build cannot target production
+        env:
+          CLOUDFLARE_ENV: staging
+        run: |
+          npm run build
+          node scripts/assert-staging-build.mjs
       - name: Initialize isolated local D1
         run: |
           npx wrangler d1 migrations apply nowen-community-db --local
