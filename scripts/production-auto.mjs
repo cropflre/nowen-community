@@ -5,7 +5,7 @@
  * the official domain. Do not modify schema, users or staging services.
  */
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
+import {readFileSync,readdirSync} from 'node:fs';
 
 const mode=process.argv[2];
 assert.ok(['check','publish'].includes(mode),'Expected check or publish');
@@ -72,10 +72,11 @@ async function preflight(){
  ]);
  assert.equal(database.name,'nowen-community-db');
  assert.equal(bucket.name,BUCKET);
- const migrationsDone=new Set((migrations?.[0]?.results||[]).map(x=>x.name));
- for(const name of ['0001_init.sql','0002_members.sql','0003_notifications.sql']){
-  assert.ok(migrationsDone.has(name),'Production D1 missing migration '+name);
- }
+ const migrationsDone=(migrations?.[0]?.results||[]).map(x=>x.name);
+ const expectedMigrations=readdirSync(new URL('../migrations/',import.meta.url))
+  .filter(name=>/^\d{4}_.+\.sql$/.test(name)).sort();
+ assert.deepEqual(migrationsDone,expectedMigrations,
+  'Production D1 migration drift: apply reviewed remote migrations after backup before deploying');
  assert.equal(zone.name,'nowen.cn');
  assert.equal(zone.status,'active');
  assert.equal(sub.enabled,false,'Production workers.dev must stay disabled');

@@ -4,7 +4,7 @@
  * Never applies D1 migrations, creates routes/domains, or mutates production resources.
  */
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 
 const config = JSON.parse(readFileSync(new URL('../wrangler.jsonc', import.meta.url), 'utf8'));
 const account = process.env.CLOUDFLARE_ACCOUNT_ID;
@@ -70,7 +70,10 @@ for (const name of ['users','topics','replies','invitations','sessions','audit_l
   assert.ok(tables.has(name), 'Missing staging D1 table ' + name);
 }
 const applied = migrationsResult?.[0]?.results?.map(x=>x.name);
-assert.deepEqual(applied, ['0001_init.sql','0002_members.sql','0003_notifications.sql']);
+const expectedMigrations = readdirSync(new URL('../migrations/', import.meta.url))
+  .filter(name => /^\d{4}_.+\.sql$/.test(name)).sort();
+assert.deepEqual(applied, expectedMigrations,
+  'Staging D1 migration drift: apply reviewed remote migrations after backup before deploying');
 assert.ok(!workerRoutes.some(r=>r.script==='nowen-community-staging'), 'Staging Worker route exists');
 assert.ok(!workerDomains.some(d=>d.service==='nowen-community-staging' || d.hostname==='staging-community.nowen.cn'), 'Staging Worker custom domain exists');
 
