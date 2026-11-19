@@ -18,8 +18,15 @@ test('production deployment pins correct Worker and resources and checks assets 
  for(const v of ['nowen-community','ASSETS','workers_dev','DB','MEDIA','TURNSTILE_SITE_KEY']){
   assert.ok(generated.includes(v),'Missing build guard: '+v);
  }
- for(const v of ['community.nowen.cn','a63c9450-f93f-409d-adaf-313491e2bfc8','nowen-community-assets','PASSWORD_PEPPER','TURNSTILE_SECRET_KEY','ASSETS','0003_notifications.sql','previews_enabled:false']){
+ for(const v of ['community.nowen.cn','a63c9450-f93f-409d-adaf-313491e2bfc8','nowen-community-assets','PASSWORD_PEPPER','TURNSTILE_SECRET_KEY','ASSETS','readdirSync','expectedMigrations','previews_enabled:false']){
   assert.ok(script.includes(v),'Missing production preflight guard: '+v);
  }
  assert.doesNotMatch(script,/\/d1\/database\/.*?(?:DELETE|UPDATE|INSERT|migrations apply)/);
+});
+
+test('preflight blocks a production deployment when checked-in D1 migrations are missing remotely',()=>{
+ const script=read('scripts/production-auto.mjs');
+ assert.ok(script.includes("new URL('../migrations/',import.meta.url)"));
+ assert.match(script,/assert\.deepEqual\(migrationsDone,expectedMigrations/);
+ assert.match(script,/migration drift/);
 });
