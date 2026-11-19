@@ -1,5 +1,5 @@
 import React,{useEffect,useState} from 'react';
-type Notice={id:string;kind:'topic_published'|'reply_approved';targetId:string;slug:string|null;readAt:number|null;createdAt:number};
+type Notice={id:string;kind:'topic_published'|'reply_approved'|'best_answer';targetId:string;slug:string|null;readAt:number|null;createdAt:number};
 export function NotificationTray(){
  const [items,setItems]=useState<Notice[]>([]),[open,setOpen]=useState(false),[loading,setLoading]=useState(false);
  const [error,setError]=useState('');
@@ -34,5 +34,5 @@ export function NotificationTray(){
  return <div className="notices"><button className="small-icon" aria-expanded={open} aria-label={'通知中心，'+unread+' 条未读'} onClick={()=>{setOpen(x=>!x);if(!open)load().catch(()=>{})}}>♧ {unread>0&&<b>{unread}</b>}</button>
  {open&&<section className="notice-panel" aria-label="通知列表"><div className="notice-heading"><b>消息通知</b><div>{unread>0&&<button onClick={allRead} className="notice-all-read">全部已读</button>}<button onClick={()=>setOpen(false)} aria-label="关闭通知">×</button></div></div>
  {error&&<p role="alert">{error}</p>}{loading&&<p>加载中…</p>}{!loading&&!items.length&&<p>暂无通知</p>}
- {items.map(item=><button key={item.id} className={item.readAt?'notice':'notice unread'} onClick={()=>mark(item)}><strong>{item.kind==='topic_published'?'你的话题已经通过审核':'你参与的话题有新回复'}</strong><small>{new Date(item.createdAt*1000).toLocaleString('zh-CN')}{!item.readAt?' · 未读':''}</small></button>)}</section>}</div>;
+ {items.map(item=><button key={item.id} className={item.readAt?'notice':'notice unread'} onClick={()=>mark(item)}><strong>{item.kind==='topic_published'?'你的话题已经通过审核':item.kind==='best_answer'?'你的回复被采纳为最佳答案':'你参与的话题有新回复'}</strong><small>{new Date(item.createdAt*1000).toLocaleString('zh-CN')}{!item.readAt?' · 未读':''}</small></button>)}</section>}</div>;
 }

@@ -6,5 +6,6 @@ const messages:Record<string,string>={
  FILE_TOO_LARGE:'图片超过 2 MB，请压缩后重试',INVALID_FILE_SIGNATURE:'图片格式与文件内容不一致',UNSUPPORTED_MEDIA:'仅支持 PNG、JPG、WebP 图片',
  NETWORK_ERROR:'网络连接失败，请检查网络',AUTH_UNAVAILABLE:'账号服务暂不可用',CONFLICT:'内容已发生变化，请刷新后重试',
  NOT_ALLOWED:'当前状态无法操作',NOT_FOUND:'内容不存在或已被删除',DUPLICATE_USERNAME:'用户名已存在',REGISTRATION_FAILED:'注册失败，用户名可能已被占用',
+ NOT_QUESTION_TOPIC:'只有在问题求助板块才能采纳最佳答案',REPLY_NOT_AVAILABLE:'该回复暂不能被采纳',CREATE_FAILED:'内容创建失败，请稍后重试',
 };
 export function friendlyError(code:string){return messages[code]||(/^(HTTP \d+)$/.test(code)?'请求失败，请稍后重试':code||'操作失败，请重试')}
