@@ -44,6 +44,8 @@ test('staging deploy requires manual selection, approval and staging-only secret
  assert.match(p,/nowen-community-staging-db/);
  assert.match(p,/nowen-community-staging-assets/);
  assert.match(p,/no public routes\/domains/);
+ assert.match(p,/readdirSync/);
+ assert.match(p,/assert\.deepEqual\(applied, expectedMigrations/);
 });
 
 test('phase6 Access gate is manual read-only and rejects missing or weak protection',()=>{
