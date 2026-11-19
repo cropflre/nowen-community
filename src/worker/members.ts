@@ -104,6 +104,51 @@ app.post('/topics/:slug/replies',async c=>{const user=await requireActor(c);if(!
  const now=seconds();await c.env.DB.prepare("INSERT OR IGNORE INTO replies(id,topic_id,author_id,content,status,client_key,created_at) VALUES(?,?,?,?,'pending',?,?)").bind(randomId(),topic.id,user.id,content,key,now).run();
  const item=await c.env.DB.prepare('SELECT id,status FROM replies WHERE author_id=? AND client_key=?').bind(user.id,key).first();return item?c.json({item},201):c.json({error:'CREATE_FAILED'},409);
 });
+// Bookmarked published topics only: private moderation states never leak into the personal list.
+app.get('/me/bookmarks',async c=>{
+ const user=await getActor(c);if(!user)return c.json({error:'UNAUTHORIZED'},401);
+ const {results}=await c.env.DB.prepare("SELECT t.id,t.slug,t.title,SUBSTR(t.content,1,180) AS excerpt,t.reply_count AS replyCount,t.solved_at AS solvedAt,c.name AS categoryName,u.display_name AS authorName,t.created_at AS createdAt,b.created_at AS bookmarkedAt FROM bookmarks b JOIN topics t ON t.id=b.topic_id JOIN categories c ON c.id=t.category_id JOIN users u ON u.id=t.author_id WHERE b.user_id=? AND t.status='published' ORDER BY b.created_at DESC LIMIT 100").bind(user.id).all();
+ return c.json({items:results});
+});
+// Best-answer lifecycle: the topic author owns it; admins/moderators may assist. Pending, hidden or foreign replies are never acceptable.
+app.post('/topics/:id/best-answer',async c=>{
+ const user=await requireActor(c);if(!user)return c.json({error:'UNAUTHORIZED'},401);
+ if(!await rateLimit(c,'best-answer:'+user.id,30,3600))return c.json({error:'RATE_LIMITED'},429);
+ const topic=await c.env.DB.prepare("SELECT id,author_id AS authorId,category_id AS categoryId,best_reply_id AS bestReplyId,solved_at AS solvedAt FROM topics WHERE id=? AND status='published'").bind(c.req.param('id')).first<{id:string;authorId:string;categoryId:string;bestReplyId:string|null;solvedAt:number|null}>();
+ if(!topic)return c.json({error:'NOT_FOUND'},404);
+ if(topic.categoryId!=='help')return c.json({error:'NOT_QUESTION_TOPIC'},409);
+ const staff=['admin','moderator'].includes(user.role);
+ if(topic.authorId!==user.id&&!staff)return c.json({error:'FORBIDDEN'},403);
+ const body=await parseBody(c,400);if(!body)return c.json({error:'INVALID_BODY'},400);
+ const replyId=stringField(body,'replyId',80);
+ const now=seconds();
+ const assisted=topic.authorId!==user.id; // staff helping on someone else's question
+ if(replyId===null){
+  const statements=[
+   c.env.DB.prepare("UPDATE topics SET best_reply_id=NULL,solved_at=NULL,updated_at=? WHERE id=? AND best_reply_id IS NOT NULL").bind(now,topic.id),
+  ];
+  if(assisted)statements.push(
+   c.env.DB.prepare("INSERT INTO audit_logs(id,actor_id,action,target_type,target_id,created_at) SELECT ?,?,?,?,?,? WHERE changes()=1").bind(randomId(),user.id,'topic.unresolve','topic',topic.id,now)
+  );
+  const result=await c.env.DB.batch(statements);
+  return (result[0].meta.changes??0)===1?c.json({item:{bestReplyId:null,solvedAt:null}}):c.json({error:'NOT_ALLOWED'},409);
+ }
+ const reply=await c.env.DB.prepare("SELECT id,author_id AS replyAuthorId FROM replies WHERE id=? AND topic_id=? AND status='published'").bind(replyId,topic.id).first<{id:string;replyAuthorId:string}>();
+ if(!reply)return c.json({error:'REPLY_NOT_AVAILABLE'},404);
+ if(reply.id===topic.bestReplyId)return c.json({item:{bestReplyId:reply.id,solvedAt:topic.solvedAt}}); // idempotent re-accept keeps stored solved_at
+ const statements=[
+  c.env.DB.prepare("UPDATE topics SET best_reply_id=?,solved_at=?,updated_at=? WHERE id=?").bind(reply.id,now,now,topic.id),
+ ];
+ if(assisted)statements.push(
+  c.env.DB.prepare("INSERT INTO audit_logs(id,actor_id,action,target_type,target_id,created_at) SELECT ?,?,?,?,?,? WHERE changes()=1").bind(randomId(),user.id,'topic.resolve','topic',topic.id,now)
+ );
+ if(reply.replyAuthorId!==user.id)statements.push(
+  c.env.DB.prepare("INSERT OR IGNORE INTO notifications(id,user_id,kind,target_id,dedupe_key,created_at) VALUES(?,?, 'best_answer',?,?,?)").bind(randomId(),reply.replyAuthorId,topic.id,'best-answer:'+reply.id,now)
+ );
+ const result=await c.env.DB.batch(statements);
+ if((result[0].meta.changes??0)!==1)return c.json({error:'CONFLICT'},409);
+ return c.json({item:{bestReplyId:reply.id,solvedAt:now}});
+});
 for(const [suffix,table] of [['like','topic_likes'],['bookmark','bookmarks']] as const){
  app.post('/topics/:id/'+suffix,async c=>{const user=await requireActor(c);if(!user)return c.json({error:'UNAUTHORIZED'},401);const topic=await c.env.DB.prepare("SELECT id FROM topics WHERE id=? AND status='published'").bind(c.req.param('id')).first();if(!topic)return c.json({error:'NOT_FOUND'},404);await c.env.DB.prepare('INSERT OR IGNORE INTO '+table+'(topic_id,user_id,created_at) VALUES(?,?,?)').bind(c.req.param('id'),user.id,seconds()).run();return c.json({active:true});});
  app.delete('/topics/:id/'+suffix,async c=>{const user=await requireActor(c);if(!user)return c.json({error:'UNAUTHORIZED'},401);await c.env.DB.prepare('DELETE FROM '+table+' WHERE topic_id=? AND user_id=?').bind(c.req.param('id'),user.id).run();return c.json({active:false});});

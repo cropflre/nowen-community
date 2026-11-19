@@ -51,9 +51,11 @@ export const topics = sqliteTable('topics', {
   status: text('status', { enum: ['draft', 'pending', 'published', 'hidden'] }).notNull().default('pending'),
   pinned: integer('pinned', { mode: 'boolean' }).notNull().default(false),
   replyCount: integer('reply_count').notNull().default(0),
+  bestReplyId: text('best_reply_id'),
+  solvedAt: integer('solved_at'),
   createdAt: integer('created_at').notNull().default(now),
   updatedAt: integer('updated_at').notNull().default(now),
-}, t => [index('topics_feed_idx').on(t.status, t.createdAt), index('topics_category_idx').on(t.categoryId, t.status, t.createdAt)]);
+}, t => [index('topics_feed_idx').on(t.status, t.createdAt), index('topics_category_idx').on(t.categoryId, t.status, t.createdAt), index('topics_solved_idx').on(t.solvedAt, t.createdAt)]);
 
 export const replies = sqliteTable('replies', {
   id: text('id').primaryKey(),
@@ -114,7 +116,7 @@ export const requestLimits = sqliteTable('request_limits', {
 
 export const notifications = sqliteTable('notifications',{
  id:text('id').primaryKey(),userId:text('user_id').notNull().references(()=>users.id),
- kind:text('kind',{enum:['topic_published','reply_approved']}).notNull(),
+ kind:text('kind',{enum:['topic_published','reply_approved','best_answer']}).notNull(),
  targetId:text('target_id').notNull(),dedupeKey:text('dedupe_key').notNull().unique(),
  readAt:integer('read_at'),createdAt:integer('created_at').notNull().default(now),
 },t=>[index('notifications_user_idx').on(t.userId,t.readAt,t.createdAt)]);

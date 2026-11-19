@@ -84,3 +84,27 @@
  .content{padding-top:16px}
  .columns{margin-top:22px}
 }
+
+/* P0 batch 1: engagement state, bookmarks and best answers */
+.filter-groups{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.solved-tag{font-size:10px;background:#e2f4e9;color:#22703f;padding:3px 6px;margin-right:7px;border-radius:4px;font-style:normal}
+.open-tag{font-size:10px;background:#fdf1dd;color:#8a5a13;padding:3px 6px;margin-right:7px;border-radius:4px;font-style:normal}
+:root[data-theme=dark] .solved-tag{background:#15301f;color:#7fd39a}
+:root[data-theme=dark] .open-tag{background:#33270f;color:#dcb264}
+.solved-pill{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:#22703f;background:#e2f4e9;border-radius:99px;padding:5px 10px;margin-left:9px}
+.open-pill{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:#8a5a13;background:#fdf1dd;border-radius:99px;padding:5px 10px;margin-left:9px}
+:root[data-theme=dark] .solved-pill{color:#7fd39a;background:#15301f}
+:root[data-theme=dark] .open-pill{color:#dcb264;background:#33270f}
+.engagement-actions{align-items:center;flex-wrap:wrap}
+.reply-head{display:flex;align-items:center;gap:10px}
+.reply-head b{font-size:12px}
+.accept-button{margin-left:auto;border:1px solid var(--line);background:var(--soft);color:var(--nav);border-radius:8px;padding:6px 11px;font-size:11px;font-weight:700}
+.accept-button:hover{color:var(--accent);border-color:var(--accent)}
+.best-reply{border:1px solid #8fd3a8;border-left:4px solid #34a05f;background:#f2faf4;margin-bottom:14px}
+:root[data-theme=dark] .best-reply{border-color:#2d5a3d;border-left-color:#3fae6c;background:#152018}
+.best-reply-head{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+.best-answer-badge{font-size:11px;font-weight:800;color:#22703f;background:#d8eedf;border-radius:6px;padding:4px 9px}
+:root[data-theme=dark] .best-answer-badge{color:#7fd39a;background:#1c3625}
+.my-topic strong a{color:var(--text)}
+.my-topic strong a:hover{color:var(--accent)}
+@media(max-width:600px){.solved-pill,.open-pill{margin-left:0;margin-top:7px}.engagement-actions{gap:6px}.author{display:flex;flex-wrap:wrap;align-items:center;gap:6px}}

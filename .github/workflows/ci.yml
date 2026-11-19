@@ -55,6 +55,7 @@ jobs:
           '
           node scripts/phase2-smoke.mjs
           node scripts/phase3-smoke.mjs
+          node scripts/engagement-solved-smoke.mjs
       - name: Protect existing NOWEN services
         run: |
           grep -q '"workers_dev": false' wrangler.jsonc

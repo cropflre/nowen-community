@@ -50,6 +50,32 @@ test('open registration, draft autosave and pending-only submission',async({page
  const json=await me.json();
  expect(json.items.some((item:{status:string;title:string})=>item.title==='我的第一篇弄文社区话题'&&item.status==='pending')).toBeTruthy();
 });
+test('resolution filters and bookmarks entry are present for members',async({page})=>{
+ await page.goto('/');
+ await expect(page.getByRole('group',{name:'解决状态筛选'})).toBeVisible();
+ // Data-independent: either the empty state shows, or every listed row carries the matching tag.
+ await page.getByRole('button',{name:'待解决'}).click();
+ await page.waitForFunction(()=>{
+  const rows=document.querySelectorAll('.topic-row');
+  return rows.length===0?document.body.innerText.includes('当前没有待解决的问题'):rows.length===document.querySelectorAll('.topic-row .open-tag').length;
+ });
+ await page.getByRole('button',{name:'已解决'}).click();
+ await page.waitForFunction(()=>{
+  const rows=document.querySelectorAll('.topic-row');
+  return rows.length===0?document.body.innerText.includes('还没有已解决的问题'):rows.length===document.querySelectorAll('.topic-row .solved-tag').length;
+ });
+ await expect(page.getByRole('button',{name:'我的收藏'})).toHaveCount(0);
+ // Mock the member session so this test does not consume the shared register rate-limit budget.
+ const member={id:'e2e-member',username:'e2emember',displayName:'收藏测试用户',role:'member'};
+ await page.route('**/api/v1/me',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({user:member})}));
+ await page.route('**/api/v1/me/bookmarks',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({items:[]})}));
+ await page.reload();
+ await expect(page.getByRole('button',{name:'我的收藏'})).toBeVisible();
+ await page.getByRole('button',{name:'我的收藏'}).click();
+ await expect(page.getByRole('dialog',{name:'我的收藏'})).toBeVisible();
+ await expect(page.getByText('还没有收藏话题。在帖子下方点击「☆ 收藏」即可保存。')).toBeVisible();
+ await page.getByRole('button',{name:'关闭'}).click();
+});
 test('admin page is denied to non-administrators',async({page})=>{
  await page.goto('/admin');
  await expect(page.getByRole('heading',{name:'无访问权限'})).toBeVisible();

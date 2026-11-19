@@ -1,17 +1,14 @@
 import { Hono } from 'hono';
-import { and, desc, eq, like, or, sql } from 'drizzle-orm';
+import { and, desc, eq, isNotNull, isNull, like, or, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 import { categories, topics, users } from '../db/schema';
 import { seoTopicHtml } from './seo';
+import { getActor, type CommunityBindings } from './security';
 import memberRoutes from './members';
 import moderationRoutes from './moderation';
 import notificationRoutes from './notifications';
 
-type Bindings = {
-  DB: D1Database;
-  ASSETS: Fetcher;
-};
-const app = new Hono<{ Bindings: Bindings }>();
+const app = new Hono<{ Bindings: CommunityBindings }>();
 
 app.use('*', async (c, next) => {
   await next();
@@ -45,14 +42,20 @@ app.get('/api/v1/topics', async c => {
   const category = c.req.query('category')?.slice(0, 60) || '';
   const page = Math.min(100, Math.max(1, Number.parseInt(c.req.query('page') || '1', 10) || 1));
   const sort = c.req.query('sort') === 'popular' ? 'popular' : 'latest';
+  const resolutionParam = c.req.query('resolution');
+  const resolution = resolutionParam === 'solved' || resolutionParam === 'unsolved' ? resolutionParam : 'all';
   const condition = and(
     eq(topics.status, 'published'),
     category ? eq(topics.categoryId, category) : undefined,
     query ? or(like(topics.title, '%' + query + '%'), like(topics.content, '%' + query + '%')) : undefined,
+    // "待解决" only surfaces unanswered help questions; other boards stay discussion topics.
+    resolution === 'solved' ? isNotNull(topics.solvedAt) : undefined,
+    resolution === 'unsolved' ? and(eq(topics.categoryId, 'help'), isNull(topics.solvedAt)) : undefined,
   );
   const rows = await db.select({
     id: topics.id, slug: topics.slug, title: topics.title, content: topics.content,
     createdAt: topics.createdAt, replyCount: topics.replyCount, pinned: topics.pinned,
+    solvedAt: topics.solvedAt,
     categoryId: topics.categoryId, categoryName: categories.name,
     authorName: users.displayName,
   }).from(topics)
@@ -67,6 +70,7 @@ async function getPublicTopic(db: ReturnType<typeof drizzle>, slug: string) {
   const rows = await db.select({
     id: topics.id, slug: topics.slug, title: topics.title, content: topics.content,
     createdAt: topics.createdAt, replyCount: topics.replyCount,
+    authorId: topics.authorId, bestReplyId: topics.bestReplyId, solvedAt: topics.solvedAt,
     categoryId: topics.categoryId, categoryName: categories.name,
     authorName: users.displayName
   }).from(topics)
@@ -79,7 +83,18 @@ async function getPublicTopic(db: ReturnType<typeof drizzle>, slug: string) {
 
 app.get('/api/v1/topics/:slug', async c => {
   const item = await getPublicTopic(drizzle(c.env.DB), c.req.param('slug'));
-  return item ? c.json({ item }) : c.json({ error: 'not_found' }, 404);
+  if (!item) return c.json({ error: 'not_found' }, 404);
+  // Restore the signed-in reader's own like/bookmark state so a reload keeps the real UI state.
+  const actor = await getActor(c);
+  let viewer: { liked: boolean; bookmarked: boolean } | null = null;
+  if (actor) {
+    const engagement = await c.env.DB.prepare(
+      'SELECT (SELECT 1 FROM topic_likes WHERE topic_id=? AND user_id=?) IS NOT NULL AS liked,' +
+      ' (SELECT 1 FROM bookmarks WHERE topic_id=? AND user_id=?) IS NOT NULL AS bookmarked'
+    ).bind(item.id, actor.id, item.id, actor.id).first<{ liked: number; bookmarked: number }>();
+    viewer = { liked: Boolean(engagement?.liked), bookmarked: Boolean(engagement?.bookmarked) };
+  }
+  return c.json({ item: { ...item, viewer } });
 });
 
 // Server-generated semantic HTML: crawlers see the real topic title and body,
