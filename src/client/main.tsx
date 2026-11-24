@@ -115,7 +115,7 @@ function formatDate(ts: number): string {
 function Brand() {
   return (
     <a href="/" className="brand">
-      <span className="brand-mark" aria-hidden="true">N</span>
+      <img className="brand-mark" src="/nowen-brand-icon.png" width={34} height={34} alt="" />
       <span>
         <strong>弄文社区</strong>
         <small>NOWEN</small>
