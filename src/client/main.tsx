@@ -21,7 +21,7 @@ const preset:Category[]=[
 {id:'chat',name:'茶话会',description:'技术与生活',icon:'chat'}];
 const glyphs:Record<string,React.ReactNode>={note:<NotebookPen/>,reader:<BookOpen/>,video:<Video/>,showcase:<Sparkles/>,help:<LifeBuoy/>,chat:<Coffee/>};
 async function api<T>(path:string):Promise<T>{const r=await fetch(path,{headers:{Accept:'application/json'},credentials:'same-origin'});if(!r.ok)throw new Error('HTTP '+r.status);return r.json() as Promise<T>;}
-function Brand(){return <a href="/" className="brand"><span className="brand-mark">N</span><span><strong>弄文社区</strong><small>NOWEN COMMUNITY</small></span></a>;}
+function Brand(){return <a href="/" className="brand"><img className="brand-mark" src="/nowen-brand-icon.png" width={42} height={42} alt="" /><span><strong>弄文社区</strong><small>NOWEN COMMUNITY</small></span></a>;}
 function App(){
  const {member,setMember}=useMember();
  const [authOpen,setAuthOpen]=useState(false);
