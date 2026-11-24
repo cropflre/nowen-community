@@ -1,15 +1,19 @@
 import {test,expect} from '@playwright/test';
 test('community home, themes and responsive navigation',async({page,isMobile})=>{
  await page.goto('/');
- await expect(page.getByRole('heading',{name:/好的想法/})).toBeVisible();
- await expect(page.getByText('开放注册 · 内容先审')).toBeVisible();
+ await expect(page.getByRole('heading',{level:1,name:'弄文社区'})).toBeVisible();
+ await expect(page.getByText('NAS 装好了可以来晒，装到一半卡住了也可以来问。')).toBeVisible();
+ await expect(page.getByText('PRIVATE BETA')).toHaveCount(0);
  const before=await page.locator('html').getAttribute('data-theme');
  await page.getByRole('button',{name:'切换明暗主题'}).click();
  await expect(page.locator('html')).toHaveAttribute('data-theme',before==='dark'?'light':'dark');
  if(isMobile){
   await page.getByRole('button',{name:'打开导航'}).click();
   await expect(page.getByRole('navigation',{name:'社区板块'})).toBeVisible();
+  await expect(page.getByText('开放注册 · 内容先审')).toBeVisible();
   await page.getByRole('button',{name:'关闭导航'}).click();
+ }else{
+  await expect(page.getByText('开放注册 · 内容先审')).toBeVisible();
  }
 });
 test('open registration, draft autosave and pending-only submission',async({page})=>{
@@ -31,13 +35,13 @@ test('open registration, draft autosave and pending-only submission',async({page
  await expect(page.getByPlaceholder('管理员提供的一次性邀请码')).toHaveCount(0);
  await page.getByRole('button',{name:'创建账号'}).click();
  await expect(page.getByRole('button',{name:/测试创作者.*账号/})).toBeVisible({timeout:15000});
- await page.getByRole('button',{name:'开启一个话题'}).click();
+ await page.getByRole('button',{name:'发帖'}).first().click();
  await page.getByPlaceholder('用一句话描述你想讨论的事情').fill('我的第一篇弄文社区话题');
  await page.getByPlaceholder('分享你的想法，支持 Markdown 语法…').fill('这是通过 Playwright 浏览器端测试发布的 Markdown 内容。');
  await expect(page.getByRole('status')).toContainText(/草稿已保存|保存中/,{timeout:15000});
  await expect(page.getByRole('button',{name:'加粗'})).toBeVisible();
- await page.getByRole('button',{name:'提交审核'}).click();
- await expect(page.getByText('已提交审核，审核通过后其他用户才能看到')).toBeVisible({timeout:15000});
+ await page.getByRole('dialog',{name:'发帖'}).getByRole('button',{name:'发帖'}).click();
+ await expect(page.getByText('已提交，等待审核')).toBeVisible({timeout:15000});
  await page.getByRole('button',{name:'我的帖子'}).click();
  await expect(page.getByRole('dialog',{name:'我的帖子'})).toBeVisible();
  await expect(page.getByText('我的第一篇弄文社区话题')).toBeVisible();
